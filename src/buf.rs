@@ -1,4 +1,3 @@
-#[allow(dead_code)]
 pub struct Buf {
     pub valid: bool,
     pub disk: bool,
@@ -8,13 +7,10 @@ pub struct Buf {
     pub data: [u8; 4096],
 }
 
-#[allow(dead_code)]
 pub struct BufCache {
 
 }
 
-#[allow(dead_code)]
-#[allow(unused_variables)]
 impl BufCache {
     pub fn new() -> BufCache {
         BufCache {
