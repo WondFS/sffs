@@ -17,7 +17,9 @@ pub struct BufCache {
 #[allow(unused_variables)]
 impl BufCache {
     pub fn new() -> BufCache {
-        BufCache {  }
+        BufCache {
+
+        }
     }   
 
     pub fn read(&self, dev: u8, address: u32) -> [u8; 4096] {
