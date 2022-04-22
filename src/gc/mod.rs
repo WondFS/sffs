@@ -1,3 +1,2 @@
-pub mod bit;
-pub mod nat;
-pub mod vam;
+pub mod main_table;
+pub mod gc_manager;

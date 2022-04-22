@@ -1,6 +1,11 @@
+mod gc;
+mod kv;
 mod buf;
 mod raw;
-mod gc;
+mod core;
+mod disk;
+mod inode;
+mod common;
 
 fn main() {
     println!("Hello, world!");
