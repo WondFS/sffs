@@ -20,15 +20,7 @@ impl CoreManager {
         }
     }
 
-    pub fn read_sb() {
-
-    }
-
-    pub fn read_bit() {
-
-    }
-
-    pub fn read_pit() {
+    pub fn read_sb(&mut self) {
 
     }
 
@@ -40,6 +32,21 @@ impl CoreManager {
 
 }
 
+// 管理BIT Region
+impl CoreManager {
+    pub fn read_bit(&mut self) {
+        let data_1 = self.read_block(1);
+        let data_2 = self.read_block(2);
+    }
+}
+
+// 管理PIT Region
+impl CoreManager {
+    pub fn read_pit(&mut self) {
+        
+    }
+}
+
 // 调用下层的接口 对上不可见
 impl CoreManager {
     pub fn read_page(&self, address: u32) -> [u8; 4096] {
@@ -49,7 +56,7 @@ impl CoreManager {
     pub fn read_block(&self, block_no: u32) -> [[u8; 4096]; 128] {
         let max_address = block_no * 128 + 1;
         let mut address = max_address - 128;
-        let mut block: Vec<[u8; 4096]>;
+        let mut block = vec![];
         while address < max_address {
             let page = self.read_page(address);
             address += 1;

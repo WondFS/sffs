@@ -1,43 +1,47 @@
 use std::collections::HashMap;
 
-#[derive(Copy, Clone)]
-pub enum PageUsedStatus {
-    Clean,
-    Dirty,
-    Busy(u32),
-}
-
 pub struct BIT {
-    pub table: HashMap<u32, PageUsedStatus>,
-    pub need_sync: bool, // true 需要持久化到磁盘中
+    pub table: HashMap<u32, bool>, // true: dirty/used false: clean
+    pub sync: bool,                // true 需要持久化到磁盘中
 }
 
 impl BIT {
     pub fn new() -> BIT {
         BIT {
             table: HashMap::new(),
-            need_sync: false,
+            sync: false,
         }
     }
 
-    pub fn set_by_disk(&mut self) {
-        
+    pub fn set_by_disk(&mut self, data: [[u8; 4096]; 128]) {
+        for (i, page) in data.iter().enumerate() {
+            for (j, byte) in page.iter().enumerate() {
+                let mut byte = byte.clone();
+                for k in 0..8 {
+                    let index = i * 4096 * 8 + j * 8 + k;
+                    if byte & 1 == 1 {
+                        self.table.insert(index as u32, true);
+                    } else {
+                        self.table.insert(index as u32, false);
+                    }
+                    byte = byte >> 1;
+                }
+            }
+        }
     }
 
-    pub fn get_page(&self, address: u32) -> PageUsedStatus {
-        todo!()
+    pub fn get_page(&self, address: u32) -> bool {
+        self.table.get(&address).unwrap().clone()
     }
 
-    pub fn set_page(&mut self, address: u32, status: PageUsedStatus) {
-
+    pub fn set_page(&mut self, address: u32, status: bool) -> bool {
+        *self.table.get_mut(&address).unwrap() = status;
+        self.sync = true;
+        true
     }
-
-    pub fn update_page(&mut self, address: u32, status: PageUsedStatus) {
-        
-    }
-
-    pub fn get_block(&self, block_no: u32) -> Option<[PageUsedStatus; 128]> {
-        let mut res = [PageUsedStatus::Clean; 128];
+    
+    pub fn get_block(&self, block_no: u32) -> Option<[bool; 128]> {
+        let mut res = [false; 128];
         let start_index = block_no * 128;
         let end_index = (block_no + 1) * 128;
         for (index, i) in (start_index..end_index).enumerate() {
@@ -46,20 +50,26 @@ impl BIT {
         Some(res)
     }
 
-    pub fn update_block(&mut self, block_no: u32, status: [PageUsedStatus; 128]) {
-
+    pub fn set_block(&mut self, block_no: u32, status: [bool; 128]) -> bool {
+        let start_index = block_no * 128;
+        let end_index = (block_no + 1) * 128;
+        for (index, i) in (start_index..end_index).enumerate() {
+            *self.table.get_mut(&i).unwrap() = status[index];
+        }
+        self.sync = true;
+        true
     }
 
-    pub fn find_next_pos_to_write(&self, len: u32) -> Option<u32> {
+    pub fn encode(&self) -> [[u8; 4096]; 128] {
         todo!()
     }
 
-    pub fn find_garbage_collect_event(&self) {
-        todo!()
+    pub fn need_sync(&self) -> bool {
+        self.sync
     }
 
     pub fn sync(&mut self) {
-        
+        self.sync = false;
     }
 }
 
