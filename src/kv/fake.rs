@@ -1,28 +1,29 @@
+use crate::kv::raw_inode;
+
 pub struct FakeKV {
 
 }
 
 impl FakeKV {
-    fn new() -> FakeKV {
+    pub fn new() -> FakeKV {
         FakeKV {
 
         }
     }
 
-    fn get_inode() {
-
+    pub fn get_inode(&mut self, ino: u32) -> raw_inode::RawInode {
+        todo!()
     }
 
-    fn update_inode() {
-
+    pub fn update_inode(&mut self, inode: raw_inode::RawInode) {
+        todo!()
     }
 
-    fn delete_inode() {
-
+    pub fn delete_inode(&mut self, ino: u32) {
+        todo!()
     }
 
-    fn allocate_inode() {
-
+    pub fn allocate_inode(&mut self) -> raw_inode::RawInode {
+        todo!()
     }
-
 }

@@ -22,7 +22,11 @@ impl BufCache {
         [0; 4096]
     }
 
-    pub fn write(&self, dev: u8, address: u32, data: [u8; 4096]) -> bool {
-        true
+    pub fn write(&self, dev: u8, address: u32, data: [u8; 4096]) {
+        todo!()
+    }
+
+    pub fn erase(&self, dev: u8, block_no: u32) {
+        todo!()
     }
 }

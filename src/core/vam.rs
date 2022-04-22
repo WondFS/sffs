@@ -15,9 +15,9 @@ impl VAM {
         }
     }
 
-    pub fn find_next_available_virtual_address(&mut self) -> u32 {
+    pub fn get_available_address(&mut self, size: u32) -> u32 {
         let res = self.count;
-        self.count += 1;
+        self.count += size;
         res
     }
 
