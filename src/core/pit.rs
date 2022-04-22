@@ -13,13 +13,6 @@ impl PIT {
         }
     }
 
-    pub fn set_by_disk(&mut self, data: [[[u8; 4096]; 128]; 32]) {
-        let iter = DataRegion::new(data);
-        for (index, ino) in iter.enumerate() {
-            self.table.insert(index as u32, ino);
-        }
-    }
-
     pub fn get_page(&self, address: u32) -> u32 {
         self.table.get(&address).unwrap().clone()
     }
@@ -44,13 +37,13 @@ impl PIT {
 
 }
 
-struct DataRegion {
+pub struct DataRegion {
     count: usize,
     data: Vec<u8>,
 }
 
 impl DataRegion {
-    fn new(data: [[[u8; 4096]; 128]; 32]) -> DataRegion {
+    pub fn new(data: [[[u8; 4096]; 128]; 32]) -> DataRegion {
         let mut arr = vec![];
         for block in data.iter() {
             for page in block.iter() {

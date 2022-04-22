@@ -1,8 +1,9 @@
 use std::sync::Mutex;
-
 use crate::buf;
+use crate::gc::gc_manager::PageUsedStatus;
 use crate::kv::fake;
 use crate::kv::raw_inode;
+use crate::gc::gc_manager;
 use crate::core::bit;
 use crate::core::pit;
 use crate::core::vam;
@@ -14,6 +15,7 @@ pub struct CoreManager {
     pit: pit::PIT,
     vam: vam::VAM,
     kv: fake::FakeKV,
+    gc: gc_manager::GCManager,
     buf_cache: buf::BufCache,
 }
 
@@ -24,6 +26,7 @@ impl CoreManager {
             pit: pit::PIT::new(),
             vam: vam::VAM::new(),
             kv: fake::FakeKV::new(),
+            gc: gc_manager::GCManager::new(),
             buf_cache: buf::BufCache::new(),
         }
     }
@@ -81,8 +84,9 @@ impl CoreManager {
         todo!()
     }
 
-    // 设置GC
-
+    pub fn set_main_table_page(&mut self, address: u32, status: PageUsedStatus) {
+        self.gc.set_table(address, status);
+    }
 
 }
 
@@ -106,11 +110,34 @@ impl CoreManager {
             self.erase_block(2);
             data_1 = data_2;
         }
-        self.bit.set_by_disk(data_1);
+        self.set_bit(data_1);
+    }
+
+    pub fn set_bit(&mut self, data: [[u8; 4096]; 128]) {
+        for (i, page) in data.iter().enumerate() {
+            for (j, byte) in page.iter().enumerate() {
+                let mut byte = byte.clone();
+                for k in 0..8 {
+                    let index = i * 4096 * 8 + j * 8 + k;
+                    if byte & 1 == 1 {
+                        self.bit.set_page(index as u32, true);
+                        self.set_main_table_page(index as u32, PageUsedStatus::Dirty);
+                    } else {
+                        self.bit.set_page(index as u32, false);
+                        self.set_main_table_page(index as u32, PageUsedStatus::Clean);
+                    }
+                    byte = byte >> 1;
+                }
+            }
+        }
     }
 
     pub fn update_bit(&mut self, address: u32, status: bool) {
         self.bit.set_page(address, status);
+        match status {
+            true => self.set_main_table_page(address, PageUsedStatus::Dirty),
+            false => self.set_main_table_page(address, PageUsedStatus::Clean),
+        }
         self.sync_bit();
     }
 
@@ -153,11 +180,20 @@ impl CoreManager {
                 *data_1.get_mut(i).unwrap() = data_2.get(i).unwrap().clone();
             }
         }
-        self.pit.set_by_disk(data_1.try_into().unwrap())
+        self.set_pit(data_1.try_into().unwrap())
+    }
+
+    pub fn set_pit(&mut self, data: [[[u8; 4096]; 128]; 32]) {
+        let iter = pit::DataRegion::new(data);
+        for (index, ino) in iter.enumerate() {
+            self.pit.set_page(index as u32, ino);
+            self.set_main_table_page(index as u32, PageUsedStatus::Busy(ino));
+        }
     }
 
     pub fn update_pit(&mut self, address: u32, status: u32) {
         self.pit.set_page(address, status);
+        self.set_main_table_page(address, PageUsedStatus::Busy(status));
         self.sync_pit();
     }
 

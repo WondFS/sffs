@@ -13,23 +13,6 @@ impl BIT {
         }
     }
 
-    pub fn set_by_disk(&mut self, data: [[u8; 4096]; 128]) {
-        for (i, page) in data.iter().enumerate() {
-            for (j, byte) in page.iter().enumerate() {
-                let mut byte = byte.clone();
-                for k in 0..8 {
-                    let index = i * 4096 * 8 + j * 8 + k;
-                    if byte & 1 == 1 {
-                        self.table.insert(index as u32, true);
-                    } else {
-                        self.table.insert(index as u32, false);
-                    }
-                    byte = byte >> 1;
-                }
-            }
-        }
-    }
-
     pub fn get_page(&self, address: u32) -> bool {
         self.table.get(&address).unwrap().clone()
     }
