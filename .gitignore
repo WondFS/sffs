@@ -1,0 +1,8 @@
+target/
+
+###### OS dir files
+.Ds_Store
+
+###### Intellij files
+.idea/
+
