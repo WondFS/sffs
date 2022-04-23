@@ -60,6 +60,10 @@ impl CoreManager {
     }
 
     pub fn update_inode(&mut self, inode: inode::Inode) {
+        let mut inode = inode;
+        for entry in inode.data.iter_mut() {
+            entry.address = self.vam.get_physic_address(entry.address).unwrap()
+        }
         let raw_inode = CoreManager::transfer_inode_to_raw_inode(&inode);
         self.kv.update_inode(raw_inode);
     }
@@ -71,7 +75,6 @@ impl CoreManager {
 
 // GC Module
 impl CoreManager {
-
     pub fn find_next_pos_to_write(&mut self, size: u32) -> u32 {
         todo!()
     }
@@ -87,7 +90,6 @@ impl CoreManager {
     pub fn set_main_table_page(&mut self, address: u32, status: PageUsedStatus) {
         self.gc.set_table(address, status);
     }
-
 }
 
 // 管理BIT Region
@@ -197,6 +199,12 @@ impl CoreManager {
         self.sync_pit();
     }
 
+    pub fn dirty_pit(&mut self, address: u32) {
+        self.pit.delete_page(address);
+        self.set_main_table_page(address, PageUsedStatus::Dirty);
+        self.sync_pit();
+    }
+    
     pub fn sync_pit(&mut self) {
         if self.pit.need_sync() {
             let data = self.pit.encode();
@@ -252,22 +260,31 @@ impl CoreManager {
         self.read_page(address)
     }
 
-    pub fn dispose_event_group(&mut self, event_group: inode_event::InodeEventGroup) -> inode::Inode {
+    pub fn dispose_event_group(&mut self, event_group: inode_event::InodeEventGroup) -> Option<inode::Inode> {
         let mut inode = event_group.inode;
-        let mut raw_inode = CoreManager::transfer_inode_to_raw_inode(&inode);
         if event_group.need_delete {
-
+            for entry in inode.data.iter() {
+                let address = self.vam.get_physic_address(entry.address).unwrap();
+                for i in 0..entry.size {
+                    self.dirty_pit(address + i);
+                    let v_address = self.vam.get_virtual_address(address + i - 1).unwrap();
+                    self.vam.delete_map(address, v_address);
+                }
+            }
+            self.kv.delete_inode(inode.ino);
+            None
         } else {
-            let mut flag = false;
             for event in event_group.events {
                 match event {
                     inode_event::InodeEvent::AddContent(event) => {
                         let mut address = self.find_next_pos_to_write(event.size);
-                        let entry = raw_inode::RawEntry {
+                        let mut v_address = self.vam.get_available_address(event.size);
+                        let entry = inode::InodeEntry {
                             offset: event.offset,
                             len: event.len,
                             size: event.size,
-                            address,
+                            valid: true,
+                            address: v_address,
                         };
                         for i in 0..event.size {
                             let mut page = vec![];
@@ -280,47 +297,65 @@ impl CoreManager {
                                 }
                             }
                             self.write_page(address, page.try_into().unwrap());
+                            self.update_bit(address, true);
+                            self.update_pit(address, inode.ino);
+                            self.vam.insert_map(address, v_address);
                             address += 1;
+                            v_address += 1;
                         }
-                        raw_inode.data.insert(event.index as usize, entry);
-                        flag = true;
+                        inode.data.insert(event.index as usize, entry);
+
                     }
                     inode_event::InodeEvent::TruncateContent(event) => {
-                        let mut entry = raw_inode.data.get_mut(event.index as usize).unwrap();
+                        let mut entry = inode.data.get_mut(event.index as usize).unwrap();
                         entry.len = event.len;
                         entry.size = event.size;
                         entry.offset = event.offset;
-                        let address = self.vam.get_physic_address(event.v_address);
+                        let address = self.vam.get_physic_address(event.v_address).unwrap();
                         for i in event.size..event.o_size {
-
+                            self.dirty_pit(address + i - 1);
+                            let v_address = self.vam.get_virtual_address(address + i - 1).unwrap();
+                            self.vam.delete_map(address, v_address);
                         }
-                        flag = true;
+
                     }
                     inode_event::InodeEvent::DeleteContent(event) => {
-                        flag = true;
+                        let mut entry = inode.data.get_mut(event.index as usize).unwrap();
+                        let address = self.vam.get_physic_address(event.v_address).unwrap();
+                        for i in 0..event.size {
+                            self.dirty_pit(address + i - 1);
+                            let v_address = self.vam.get_virtual_address(address + i - 1).unwrap();
+                            self.vam.delete_map(address, v_address);
+                        }
+                        entry.valid = false;
                     }
                     inode_event::InodeEvent::ModifyStat(event) => {
-                        flag = true;
+                        inode.file_type = event.file_type;
+                        inode.ino = event.ino;
+                        inode.size = event.size;
+                        inode.uid = event.uid;
+                        inode.gid = event.gid;
+                        inode.n_link = event.n_link;
                     }
                     _ => ()
                 }
             }
-            if flag {
-                // 更新kv中的inode
-                // self.kv.update_inode(inode.clone());
-            }
-        }
-        // 回传inode前更新回虚拟地址
-        for entry in inode.data.iter_mut() {
-            if entry.valid {
-                let address = entry.address;
-                entry.address = self.vam.get_available_address(entry.size);
-                for i in 0..entry.size {
-                    self.vam.insert_map(address+i, entry.address+i);
+            let mut remove_indexs = vec![];
+            for index in 0..inode.data.len() {
+                if !inode.data.get(index).unwrap().valid {
+                    remove_indexs.push(index);
                 }
             }
+            for index in remove_indexs.into_iter() {
+                inode.data.remove(index);
+            }
+            let mut raw_inode = CoreManager::transfer_inode_to_raw_inode(&inode);
+            for entry in raw_inode.data.iter_mut() {
+                entry.address = self.vam.get_virtual_address(entry.address).unwrap();
+            }
+            self.kv.update_inode(raw_inode);
+            Some(inode)
         }
-        inode
     }
 }
 

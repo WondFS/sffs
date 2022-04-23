@@ -1,4 +1,5 @@
 use crate::gc::main_table;
+use crate::gc::gc_event;
 
 #[derive(Clone, Copy)]
 pub enum PageUsedStatus {
@@ -16,6 +17,10 @@ impl GCManager {
         GCManager {
             table: main_table::MainTable::new(),
         }
+    }
+
+    pub fn generate_gc_event(&self) -> gc_event::GCEvent {
+        todo!()
     }
 }
 

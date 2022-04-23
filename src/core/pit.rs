@@ -23,6 +23,11 @@ impl PIT {
         true
     }
 
+    pub fn delete_page(&mut self, address: u32) -> bool {
+        self.table.remove(&address).unwrap();
+        true
+    }
+
     pub fn encode(&self) -> [[[u8; 4096]; 128]; 32] {
         todo!()
     }
