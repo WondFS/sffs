@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use std::cmp::{max, min};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum InodeFileType {
     File,
     Directory,
@@ -56,7 +56,7 @@ impl Inode {
         }
     }
 
-    fn get_stat(&self) -> InodeStat {
+    pub fn get_stat(&self) -> InodeStat {
         InodeStat {
             file_type: self.file_type.clone(),
             ino: self.ino,
@@ -67,11 +67,11 @@ impl Inode {
         }
     }
 
-    fn read_all(&self, buf: &mut Vec<u8>) -> i32 {
+    pub fn read_all(&self, buf: &mut Vec<u8>) -> i32 {
         self.read(0, self.size, buf)
     }
 
-    fn read(&self, offset: u32, len: u32, buf: &mut Vec<u8>) -> i32 {
+    pub fn read(&self, offset: u32, len: u32, buf: &mut Vec<u8>) -> i32 {
         buf.clear();
         let mut len = len;
         let mut count = 0;
@@ -104,7 +104,7 @@ impl Inode {
         count
     }
 
-    fn write(&mut self, offset: u32, len: u32, buf: &Vec<u8>) -> bool {
+    pub fn write(&mut self, offset: u32, len: u32, buf: &Vec<u8>) -> bool {
         let mut index = 0;
         let mut flag = false;
         let mut new_entries = vec![];
@@ -151,7 +151,7 @@ impl Inode {
         true
     }
 
-    fn insert(&mut self, offset: u32, len: u32, buf: &Vec<u8>) -> bool {
+    pub fn insert(&mut self, offset: u32, len: u32, buf: &Vec<u8>) -> bool {
         let mut index = 0;
         let mut flag = false;
         let mut new_entries = vec![];
@@ -191,11 +191,11 @@ impl Inode {
         true
     }
 
-    fn truncate(&mut self, offset: u32, len: u32) -> bool {
+    pub fn truncate(&mut self, offset: u32, len: u32) -> bool {
         self.truncate_to_end(offset)
     }
 
-    fn truncate_to_end(&mut self, offset: u32) -> bool {
+    pub fn truncate_to_end(&mut self, offset: u32) -> bool {
         let mut flag = false;
         if offset > self.size {
             return false;
@@ -213,7 +213,7 @@ impl Inode {
         true
     }
 
-    fn dup(&mut self) {
+    pub fn dup(&mut self) {
 
     }
 

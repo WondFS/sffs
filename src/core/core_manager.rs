@@ -90,6 +90,10 @@ impl CoreManager {
     pub fn set_main_table_page(&mut self, address: u32, status: PageUsedStatus) {
         self.gc.set_table(address, status);
     }
+
+    pub fn dispose_gc_group(&mut self, address: u32, status: PageUsedStatus) {
+        
+    }
 }
 
 // 管理BIT Region
