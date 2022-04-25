@@ -278,6 +278,11 @@ impl CoreManager {
             self.kv.delete_inode(inode.ino);
             None
         } else {
+            for entry in inode.data.iter_mut() {
+                if entry.valid == false {
+                    entry.valid = true;
+                }
+            }
             for event in event_group.events {
                 match event {
                     inode_event::InodeEvent::AddContent(event) => {
@@ -394,7 +399,6 @@ impl CoreManager {
             n_link: raw_inode.n_link,
             lock: Mutex::new(false),
             core: CoreManager::new(),
-            event_group: None,
             file_type,
             data,
         }

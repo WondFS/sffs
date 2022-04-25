@@ -19,6 +19,7 @@ impl InodeEventGroup {
 pub enum InodeEvent {
     AddContent(AddContentInodeEvent),
     TruncateContent(TruncateContentInodeEvent),
+    ChangeContent(ChangeContentInodeEvent),
     DeleteContent(DeleteContentInodeEvent),
     ModifyStat(ModifyInodeStatInodeEvent),
     None,
