@@ -66,7 +66,15 @@ pub fn name_x(i_manager: &mut inode_manager::InodeManager, path: &str, name_i_pa
             break;
         }
     }
-    None
+    todo!()
+}
+
+pub fn name_i(i_manager: &mut inode_manager::InodeManager, path: &str) -> inode_manager::InodeLink {
+    name_x(i_manager, "", false).unwrap()
+}
+
+pub fn name_i_parent(i_manager: &mut inode_manager::InodeManager, path: &str) -> inode_manager::InodeLink {
+    name_x(i_manager, "", false).unwrap()
 }
 
 

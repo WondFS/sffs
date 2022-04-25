@@ -92,7 +92,7 @@ impl DirectoryParser {
             count: 0,
             data: data.clone(),
             len: 0,
-            per_size: 0,
+            per_size: 14, // 4字节 ino 10字节 name
         }
     }
     

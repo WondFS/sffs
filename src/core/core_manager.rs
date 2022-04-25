@@ -393,6 +393,8 @@ impl CoreManager {
             ref_cnt: raw_inode.ref_cnt,
             n_link: raw_inode.n_link,
             lock: Mutex::new(false),
+            core: CoreManager::new(),
+            event_group: None,
             file_type,
             data,
         }

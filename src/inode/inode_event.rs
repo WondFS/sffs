@@ -6,6 +6,16 @@ pub struct InodeEventGroup {
     pub events: Vec<InodeEvent>,
 }
 
+impl InodeEventGroup {
+    pub fn new() -> InodeEventGroup {
+        InodeEventGroup {
+            inode: inode::Inode::new(),
+            need_delete: false,
+            events: vec![],
+        }
+    }
+}
+
 pub enum InodeEvent {
     AddContent(AddContentInodeEvent),
     TruncateContent(TruncateContentInodeEvent),
