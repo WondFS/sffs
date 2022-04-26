@@ -2,6 +2,8 @@
 // File-system system calls.
 //
 
+use crate::fake_proc;
+
 pub fn sys_dup() {
 
 }
@@ -59,5 +61,5 @@ pub fn sys_exec() {
 }
 
 pub fn sys_pipe() {
-    
+
 }

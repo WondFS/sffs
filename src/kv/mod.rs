@@ -1,2 +1,2 @@
-pub mod fake;
+pub mod fake_kv;
 pub mod raw_inode;

@@ -1,20 +1,21 @@
 use std::sync::Mutex;
 use crate::buf;
-use crate::gc::gc_manager::PageUsedStatus;
-use crate::kv::fake;
-use crate::kv::raw_inode;
-use crate::gc::gc_manager;
 use crate::core::bit;
 use crate::core::pit;
 use crate::core::vam;
 use crate::inode::inode;
 use crate::inode::inode_event;
+use crate::kv::fake_kv;
+use crate::kv::raw_inode;
+use crate::gc::gc_manager;
+use crate::gc::gc_event;
+use crate::gc::gc_manager::PageUsedStatus;
 
 pub struct CoreManager {
     bit: bit::BIT,
     pit: pit::PIT,
     vam: vam::VAM,
-    kv: fake::FakeKV,
+    kv: fake_kv::FakeKV,
     gc: gc_manager::GCManager,
     buf_cache: buf::BufCache,
 }
@@ -25,7 +26,7 @@ impl CoreManager {
             bit: bit::BIT::new(),
             pit: pit::PIT::new(),
             vam: vam::VAM::new(),
-            kv: fake::FakeKV::new(),
+            kv: fake_kv::FakeKV::new(),
             gc: gc_manager::GCManager::new(),
             buf_cache: buf::BufCache::new(),
         }
@@ -35,7 +36,7 @@ impl CoreManager {
 
     }
 
-    pub fn mount() {
+    pub fn mount(&mut self) {
 
     }
 }
@@ -76,23 +77,56 @@ impl CoreManager {
 // GC Module
 impl CoreManager {
     pub fn find_next_pos_to_write(&mut self, size: u32) -> u32 {
-        todo!()
+        let mut res;
+        loop {
+            res = self.gc.find_next_pos_to_write(size);
+            if res.is_some() {
+                break;
+            }
+            self.forward_gc();
+        }
+        res.unwrap()
     }
 
     pub fn forward_gc(&mut self) {
-        todo!()
+        let gc_group = self.gc.generate_gc_event();
+        self.dispose_gc_group(gc_group);
     }
 
     pub fn background_gc(&mut self) {
-        todo!()
+        let flag = false;
+        loop {
+            if flag {
+                let gc_group = self.gc.generate_gc_event();
+                self.dispose_gc_group(gc_group);
+            }
+        }
     }
 
     pub fn set_main_table_page(&mut self, address: u32, status: PageUsedStatus) {
         self.gc.set_table(address, status);
     }
 
-    pub fn dispose_gc_group(&mut self, address: u32, status: PageUsedStatus) {
-        
+    pub fn dispose_gc_group(&mut self, gc_group: gc_event::GCEventGroup) {
+        let mut gc_group = gc_group;
+        CoreManager::sort_gc_event(&mut gc_group);
+        for event in gc_group.events {
+            match event {
+                gc_event::GCEvent::Erase(event) => {
+                    self.erase_block(event.block_no);
+                    let start_index = event.block_no * 128;
+                    let end_index = (event.block_no + 1) * 128;
+                    for i in start_index..end_index {
+                        self.update_bit(i, false);
+                        self.clean_pit(i);
+                    }
+                }
+                gc_event::GCEvent::Move(event) => {
+                    todo!()
+                }
+                _ => ()
+            }
+        }
     }
 }
 
@@ -206,6 +240,12 @@ impl CoreManager {
     pub fn dirty_pit(&mut self, address: u32) {
         self.pit.delete_page(address);
         self.set_main_table_page(address, PageUsedStatus::Dirty);
+        self.sync_pit();
+    }
+
+    pub fn clean_pit(&mut self, address: u32) {
+        self.pit.delete_page(address);
+        self.set_main_table_page(address, PageUsedStatus::Clean);
         self.sync_pit();
     }
     
@@ -433,5 +473,9 @@ impl CoreManager {
             file_type,
             data,
         }
+    }
+
+    pub fn sort_gc_event(event_group: &mut gc_event::GCEventGroup) {
+
     }
 }

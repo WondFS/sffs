@@ -19,7 +19,11 @@ impl GCManager {
         }
     }
 
-    pub fn generate_gc_event(&self) -> gc_event::GCEvent {
+    pub fn find_next_pos_to_write(&mut self, size: u32) -> Option<u32> {
+        None
+    }
+
+    pub fn generate_gc_event(&self) -> gc_event::GCEventGroup {
         todo!()
     }
 }
