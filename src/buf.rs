@@ -8,7 +8,7 @@ pub struct Buf {
 }
 
 pub struct BufCache {
-
+    
 }
 
 impl BufCache {

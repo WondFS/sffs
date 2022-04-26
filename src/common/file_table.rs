@@ -1,13 +1,14 @@
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 use crate::common::file;
-
-use super::file::FileDescriptorType;
+use crate::common::file::FileDescriptorType;
+use crate::inode::inode_manager;
 
 pub struct FileTable {
     pub lock: Mutex<bool>,
     pub file: Vec<FileLink>,
     pub max_num: u32,
+    pub inode_manager: inode_manager::InodeManager,
 }
 
 pub type FileLink = Arc<RefCell<file::File>>;
@@ -22,6 +23,7 @@ impl FileTable {
             file,
             lock: Mutex::new(false),
             max_num: 100,
+            inode_manager: inode_manager::InodeManager::new(),
         }
     }
 

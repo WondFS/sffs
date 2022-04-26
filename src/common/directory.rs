@@ -80,14 +80,14 @@ pub struct DirectoryInodeEntry {
 }
 
 pub struct DirectoryParser {
-    count: usize,
-    data: Vec<u8>,
-    len: u32,
-    per_size: u32,
+    pub count: usize,
+    pub data: Vec<u8>,
+    pub len: u32,
+    pub per_size: u32,
 }
 
 impl DirectoryParser {
-    fn new(data: &Vec<u8>) -> DirectoryParser {
+    pub fn new(data: &Vec<u8>) -> DirectoryParser {
         DirectoryParser {
             count: 0,
             data: data.clone(),
@@ -96,11 +96,11 @@ impl DirectoryParser {
         }
     }
     
-    fn decode(buf: &Vec<u8>) -> Option<DirectoryInodeEntry> {
+    pub fn decode(buf: &Vec<u8>) -> Option<DirectoryInodeEntry> {
         None
     }
     
-    fn encode(entry: &DirectoryInodeEntry) -> Option<Vec<u8>> {
+    pub fn encode(entry: &DirectoryInodeEntry) -> Option<Vec<u8>> {
         Some(vec![])
     }
 }
