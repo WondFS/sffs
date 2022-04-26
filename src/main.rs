@@ -6,6 +6,7 @@ mod core;
 mod disk;
 mod inode;
 mod common;
+mod sys_file;
 
 fn main() {
     println!("Hello, world!");
