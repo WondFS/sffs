@@ -3,7 +3,7 @@ mod kv;
 mod buf;
 mod raw;
 mod core;
-mod disk;
+mod driver;
 mod util;
 mod inode;
 mod common;
