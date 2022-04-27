@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use std::cell::{Ref, RefMut, RefCell};
+use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 
 pub struct LRUCache<T> {
@@ -90,6 +90,8 @@ impl<T: Copy> LRUCache<T> {
             key: node.borrow().key,
             elem: node.borrow().elem,
         };
+        self.map.remove(&entry.key);
+        self.size -= 1;
         if pre_node.is_none() && next_node.is_none() {
             self.head.take();
             self.tail.take();
@@ -111,7 +113,6 @@ impl<T: Copy> LRUCache<T> {
         let next_node = next_node.unwrap();
         pre_node.borrow_mut().next = Some(Rc::clone(&next_node));
         next_node.borrow_mut().prev = Some(Rc::clone(&pre_node));
-        self.map.remove(&entry.key);
         entry
     }
 
@@ -147,5 +148,35 @@ impl<T: Copy> LRUCache<T> {
             self.map.remove(&old_tail.borrow().key);
             Rc::try_unwrap(old_tail).ok().unwrap().into_inner().elem
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn basics() {
+        let mut lru = LRUCache::<u32>::new(5);
+
+        lru.put(0,1);
+        lru.put(1,2);
+
+        assert_eq!(*lru.get(0).unwrap(), 1);
+        assert_eq!(*lru.get(1).unwrap(), 2);
+
+        lru.put(0,1);
+        lru.put(1,2);
+        lru.put(2,3);
+        lru.put(3,4);
+        lru.put(4,5);
+        lru.put(5,6);
+
+        assert_eq!(*lru.get(3).unwrap(), 4);
+        assert_eq!(*lru.get(4).unwrap(), 5);
+        assert_eq!(*lru.get(5).unwrap(), 6);
+
+        let res = lru.get(0);
+        assert!(res.is_none());
     }
 }
