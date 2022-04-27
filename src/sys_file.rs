@@ -2,9 +2,14 @@
 // File-system system calls.
 //
 
+use std::string;
 use std::sync::Arc;
 use crate::fake_proc;
+use crate::inode::inode;
+use crate::common::path;
+use crate::common::directory;
 use crate::common::file_table;
+use crate::inode::inode_manager;
 
 // fetch system call argument as a file descriptor
 // and return both the descriptor and the corresoinding struct file.
@@ -74,43 +79,164 @@ pub fn sys_fstat() -> i32 {
 }
 
 // Create the path new as a link to the same inode as old.
-pub fn sys_link() {
-    
+pub fn sys_link() -> i32 {
+    let mut proc = fake_proc::my_proc();
+    let mut name = "".to_string();
+    let new = "".to_string();
+    let old = "".to_string();
+    let ip = path::name_i(&mut proc.inode_manager, old);
+    if ip.is_none() {
+        return -1;
+    }
+    let ip = ip.unwrap();
+    if ip.borrow().file_type == inode::InodeFileType::Directory {
+        return -1;
+    }
+    let mut stat = ip.borrow_mut().get_stat();
+    stat.n_link += 1;
+    ip.borrow_mut().modify_stat(stat);
+    let dp = path::name_i_parent(&mut proc.inode_manager, new, &mut name);
+    if dp.is_none() {
+        let mut stat = ip.borrow_mut().get_stat();
+        stat.n_link -= 1;
+        ip.borrow_mut().modify_stat(stat);
+        return -1;
+    }
+    let dp = dp.unwrap();
+    let ret = directory::dir_link(&mut proc.inode_manager, dp, ip.borrow().ino, name);
+    if !ret {
+        return -1;
+    }
+    0
 }
 
 // Is the directory dp empty except for "." and ".." ?
-pub fn is_dir_empty() {
-
+pub fn is_dir_empty(inode: inode_manager::InodeLink) -> bool {
+    let mut off = 14;
+    while off < inode.borrow().size {
+        let mut buf = vec![];
+        if inode.borrow().read(off, 14, &mut buf) != 14 {
+            panic!();
+        }
+        let entry = directory::DirectoryParser::decode(&buf).unwrap();
+        if entry.ino != 0 {
+            return false;
+        }
+        off += 14;
+    }
+    true
 }
 
-pub fn sys_unlink() {
-
+pub fn sys_unlink() -> i32 {
+    let mut proc = fake_proc::my_proc();
+    let mut name = "".to_string();
+    let path = "".to_string();
+    let dp = path::name_i_parent(&mut proc.inode_manager, path, &mut name);
+    if dp.is_none() {
+        return -1;
+    }
+    let dp = dp.unwrap();
+    if name == "." || name == ".." {
+        return -1;
+    }
+    let res = directory::dir_lookup(&mut proc.inode_manager, Arc::clone(&dp), name.clone());
+    if res.is_none() {
+        return -1;
+    }
+    let (ip, _) = res.unwrap();
+    if ip.borrow().n_link < 1 {
+        panic!();
+    }
+    if ip.borrow().file_type == inode::InodeFileType::Directory && !is_dir_empty(Arc::clone(&ip)) {
+        return -1;
+    }
+    let ret = directory::dir_unlink(&mut proc.inode_manager, Arc::clone(&dp), ip.borrow().ino, name.clone());
+    if !ret {
+        return -1;
+    }
+    if ip.borrow().file_type == inode::InodeFileType::Directory {
+        let mut stat = dp.borrow_mut().get_stat();
+        stat.n_link -= 1;
+        dp.borrow_mut().modify_stat(stat);
+    }
+    let mut stat = ip.borrow_mut().get_stat();
+    stat.n_link -= 1;
+    ip.borrow_mut().modify_stat(stat);
+    0
 }
 
-pub fn create() {
-
+pub fn create(path: String, inode_type: inode::InodeFileType) -> Option<inode_manager::InodeLink> {
+    let mut proc = fake_proc::my_proc();
+    let mut name = "".to_string();
+    let dp = path::name_i_parent(&mut proc.inode_manager, path, &mut name);
+    if dp.is_none() {
+        return None;
+    }
+    let dp = dp.unwrap();
+    let res = directory::dir_lookup(&mut proc.inode_manager, Arc::clone(&dp), name.clone());
+    if res.is_some() {
+        let (ip, _) = res.unwrap();
+        if inode_type == inode::InodeFileType::File && ip.borrow().file_type == inode::InodeFileType::File {
+            return Some(ip);
+        }
+        return None;
+    }
+    let ip = proc.inode_manager.i_alloc();
+    if ip.is_none() {
+        return None;
+    }
+    let ip = ip.unwrap();
+    let mut stat = ip.borrow_mut().get_stat();
+    stat.file_type = inode_type;
+    stat.n_link = 1;
+    ip.borrow_mut().modify_stat(stat);
+    // Create . and .. entries.
+    if inode_type == inode::InodeFileType::Directory {
+        // for ".."
+        let mut stat = dp.borrow_mut().get_stat();
+        stat.file_type = inode_type;
+        stat.n_link += 1;
+        dp.borrow_mut().modify_stat(stat);
+        let res = directory::dir_link(&mut proc.inode_manager, Arc::clone(&ip), ip.borrow().ino, ".".to_string());
+        if !res {
+            panic!();
+        }
+        let res = directory::dir_link(&mut proc.inode_manager, Arc::clone(&ip), dp.borrow().ino, "..".to_string());
+        if !res {
+            panic!();
+        }
+    }
+    let res = directory::dir_link(&mut proc.inode_manager, Arc::clone(&dp), ip.borrow().ino, name);
+    if !res {
+        panic!()
+    }
+    return Some(ip);
 }
 
-pub fn sys_open() {
-
+pub fn sys_open() -> i32 {
+    todo!()
 }
 
-pub fn sys_mkdir() {
-
+pub fn sys_mkdir() -> i32 {
+    let path = "".to_string();
+    let ip = create(path, inode::InodeFileType::Directory);
+    if ip.is_none() {
+        return -1;
+    }
+    return 0;
 }
 
-pub fn sys_mknod() {
-
-}
-
-pub fn sys_chdir() {
-
-}
-
-pub fn sys_exec() {
-
-}
-
-pub fn sys_pipe() {
-
+pub fn sys_chdir() -> i32 {
+    let mut proc = fake_proc::my_proc();
+    let path = "".to_string();
+    let ip = path::name_i(&mut proc.inode_manager, path);
+    if ip.is_none() {
+        return -1;
+    }
+    let ip = ip.unwrap();
+    if ip.borrow().file_type != inode::InodeFileType::Directory {
+        return -1;
+    }
+    proc.cwd = ip;
+    0
 }

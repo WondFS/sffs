@@ -27,8 +27,8 @@ impl InodeManager {
     // Allocate an inode on device dev.
     // Mark it as allocated by giving it type type.
     // Returns an unlocked but allocated and referenced inode.
-    pub fn i_alloc() {
-
+    pub fn i_alloc(&mut self) -> Option<InodeLink> {
+        todo!()
     }
 
     // Find the inode with number ino on device dev
