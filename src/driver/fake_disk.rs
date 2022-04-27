@@ -20,15 +20,25 @@ impl FakeDisk {
         }
     }
 
-    pub fn fake_disk_read(block_no: u32) -> [[u8; 4096]; 128] {
-        [[0; 4096]; 128]
+    pub fn fake_disk_read(&self, block_no: u32) -> [[u8; 4096]; 128] {
+        let mut data = vec![];
+        let start_index = block_no * 128;
+        let end_index = (block_no + 1) * 128;
+        for index in start_index..end_index {
+            data.push(self.data[index as usize]);
+        }
+        data.try_into().unwrap()
     }
     
-    pub fn fake_disk_write(address: u32, data: [u8; 4096]) {
-    
+    pub fn fake_disk_write(&mut self, address: u32, data: [u8; 4096]) {
+        self.data[address as usize] = data;
     }
     
-    pub fn fake_disk_erase(block_no: u32) {
-    
+    pub fn fake_disk_erase(&mut self, block_no: u32) {
+        let start_index = block_no * 128;
+        let end_index = (block_no + 1) * 128;
+        for index in start_index..end_index {
+            self.data[index as usize] = [0; 4096];
+        }
     }
 }
