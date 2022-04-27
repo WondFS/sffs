@@ -115,7 +115,7 @@ pub fn is_dir_empty(inode: inode_manager::InodeLink) -> bool {
     let mut off = 14;
     while off < inode.borrow().size {
         let mut buf = vec![];
-        if inode.borrow().read(off, 14, &mut buf) != 14 {
+        if inode.borrow_mut().read(off, 14, &mut buf) != 14 {
             panic!();
         }
         let entry = directory::DirectoryParser::decode(&buf).unwrap();

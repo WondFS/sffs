@@ -53,7 +53,7 @@ impl File {
             return -1;
         }
         if self.fd_type == FileDescriptorType::INODE {
-            count = self.inode.borrow().read(self.off, len, buf);
+            count = self.inode.borrow_mut().read(self.off, len, buf);
             if count > 0 {
                 self.off += count as u32;
             }

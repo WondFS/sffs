@@ -2,8 +2,12 @@ use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 use crate::core::core_manager;
 use crate::inode::inode::Inode;
+use crate::util::lru_cache;
 
 pub struct InodeManager {
+    pub size: usize,
+    pub capacity: usize,
+    // pub cache: lru_cache::LRUCache<InodeLink>,
     pub core_manager: core_manager::CoreManager,
     pub inode_buffer: Vec<InodeLink>,
     pub lock: Mutex<bool>,
@@ -17,10 +21,14 @@ impl InodeManager {
         for _ in 0..30 {
             buf.push(Arc::new(RefCell::new(Inode::new())));
         }
+        let capacity = 4096;
         InodeManager {
+            size: 0,
+            capacity: capacity as usize,
             core_manager: core_manager::CoreManager::new(),
             inode_buffer: vec![],
             lock: Mutex::new(false),
+            // cache: lru_cache::LRUCache::new(capacity as usize),
         }
     }
 

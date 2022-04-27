@@ -90,11 +90,11 @@ impl Inode {
         true
     }
 
-    pub fn read_all(&self, buf: &mut Vec<u8>) -> i32 {
+    pub fn read_all(&mut self, buf: &mut Vec<u8>) -> i32 {
         self.read(0, self.size, buf)
     }
 
-    pub fn read(&self, offset: u32, len: u32, buf: &mut Vec<u8>) -> i32 {
+    pub fn read(&mut self, offset: u32, len: u32, buf: &mut Vec<u8>) -> i32 {
         buf.clear();
         let mut len = len;
         let mut count = 0;
@@ -105,7 +105,7 @@ impl Inode {
         if offset + len > self.size {
             len = self.size - offset;
         }
-        for entry in self.data.iter() {
+        for entry in self.data.clone().iter() {
             if entry.offset + entry.len < offset {
                 continue;
             }
@@ -403,7 +403,7 @@ impl Inode {
 }
 
 impl Inode {
-    pub fn read_entry(&self, entry: &InodeEntry, start: u32, end: u32) -> Vec<u8> {
+    pub fn read_entry(&mut self, entry: &InodeEntry, start: u32, end: u32) -> Vec<u8> {
         let start_index = start / 4096;
         let end_index = end / 4096;
         let mut pages = vec![];

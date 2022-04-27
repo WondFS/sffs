@@ -264,11 +264,11 @@ impl CoreManager {
 
 // 调用下层的接口，对上不可见
 impl CoreManager {
-    pub fn read_page(&self, address: u32) -> [u8; 4096] {
+    pub fn read_page(&mut self, address: u32) -> [u8; 4096] {
         self.buf_cache.read(0, address)
     }
 
-    pub fn read_block(&self, block_no: u32) -> [[u8; 4096]; 128] {
+    pub fn read_block(&mut self, block_no: u32) -> [[u8; 4096]; 128] {
         let max_address = block_no * 128 + 1;
         let mut address = max_address - 128;
         let mut block = vec![];
@@ -280,11 +280,11 @@ impl CoreManager {
         block.try_into().unwrap()
     }
 
-    pub fn write_page(&self, address: u32, data: [u8; 4096]) {
+    pub fn write_page(&mut self, address: u32, data: [u8; 4096]) {
         self.buf_cache.write(0, address, data)
     }
 
-    pub fn write_block(&self, block_no: u32, data: [[u8; 4096]; 128]) {
+    pub fn write_block(&mut self, block_no: u32, data: [[u8; 4096]; 128]) {
         let mut address = block_no * 128 - 127;
         for data in data.into_iter() {
             self.write_page(address, data);
@@ -292,14 +292,14 @@ impl CoreManager {
         }
     }
 
-    pub fn erase_block(&self, block_no: u32) {
+    pub fn erase_block(&mut self, block_no: u32) {
         self.buf_cache.erase(0, block_no)
     }
 }
 
 // 对上层提供的读写接口
 impl CoreManager {
-    pub fn read_data(&self, v_address: u32) -> [u8; 4096] {
+    pub fn read_data(&mut self, v_address: u32) -> [u8; 4096] {
         let address = self.vam.get_physic_address(v_address).unwrap();
         self.read_page(address)
     }

@@ -1,18 +1,18 @@
 use crate::util::lru_cache;
+use crate::driver::disk;
 
 #[derive(Clone, Copy)]
 pub struct Buf {
-    pub valid: bool,
-    pub disk: bool,
-    pub dev: u8,
     pub address: u32,
-    pub ref_cnt: u8,
     pub data: [u8; 4096],
 }
 
 impl Buf {
-    pub fn new() -> Buf {
-        todo!()
+    pub fn new(address: u32, data: [u8; 4096]) -> Buf {
+        Buf {
+            address: address,
+            data,
+        }
     }
 }
 
@@ -32,15 +32,49 @@ impl BufCache {
         }
     }   
 
-    pub fn read(&self, dev: u8, address: u32) -> [u8; 4096] {
-        [0; 4096]
+    pub fn read(&mut self, dev: u8, address: u32) -> [u8; 4096] {
+        let data = self.get_data(address);
+        if data.is_some() {
+            return data.unwrap();
+        }
+        let block_no = address / 128;
+        let data = disk::disk_read(block_no);
+        for (index, page) in data.into_iter().enumerate() {
+            self.put_data(address + index as u32, page);
+        }
+        self.get_data(address).unwrap()
     }
 
-    pub fn write(&self, dev: u8, address: u32, data: [u8; 4096]) {
-        todo!()
+    pub fn write(&mut self, dev: u8, address: u32, data: [u8; 4096]) {
+        self.put_data(address, data);
+        disk::disk_write(address, data);
     }
 
-    pub fn erase(&self, dev: u8, block_no: u32) {
-        todo!()
+    pub fn erase(&mut self, dev: u8, block_no: u32) {
+        let start_address = block_no * 128;
+        let end_address = (block_no + 1) * 128;
+        for address in start_address..end_address {
+            self.remove_data(address);
+        }
+        disk::disk_erase(block_no);
+    }
+}
+
+impl BufCache {
+    pub fn get_data(&mut self, address: u32) -> Option<[u8; 4096]> {
+        let data = self.cache.get(address);
+        if data.is_some() {
+            return Some(data.as_deref().unwrap().data);
+        }
+        None
+    }
+
+    pub fn put_data(&mut self, address: u32, data: [u8; 4096]) {
+        let buf = Buf::new(address, data);
+        self.cache.put(address, buf);
+    }
+
+    pub fn remove_data(&mut self, address: u32) {
+        self.cache.remove(address);
     }
 }

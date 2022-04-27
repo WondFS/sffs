@@ -47,6 +47,10 @@ impl <T: Copy> LRUCache<T> {
         }
     }
 
+    pub fn get_size(&self) -> usize {
+        self.size
+    }
+
     pub fn get(&mut self, key: u32) -> Option<Ref<T>> {
         if !self.map.contains_key(&key) {
             return None;
@@ -78,6 +82,15 @@ impl <T: Copy> LRUCache<T> {
             elem: value,
         };
         self.push_front(entry);
+    }
+
+    pub fn remove(&mut self, key: u32) {
+        if self.map.contains_key(&key) {
+            let node = self.map.get(&key).unwrap();
+            let node = node.as_ref().unwrap();
+            let mut node = Some(Rc::clone(node));
+            self.delete_node(&mut node);
+        }
     }
 }
 
@@ -175,6 +188,12 @@ mod test {
         assert_eq!(*lru.get(3).unwrap(), 4);
         assert_eq!(*lru.get(4).unwrap(), 5);
         assert_eq!(*lru.get(5).unwrap(), 6);
+
+        {
+            lru.remove(5);
+            let res = lru.get(5);
+            assert!(res.is_none());
+        }
 
         let res = lru.get(0);
         assert!(res.is_none());

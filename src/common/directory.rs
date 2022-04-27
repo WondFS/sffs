@@ -7,7 +7,7 @@ pub fn dir_lookup(i_manager: &mut inode_manager::InodeManager, inode: inode_mana
         return None;
     }
     let mut buf = vec![];
-    if inode.borrow().read_all(&mut buf) == 0 {
+    if inode.borrow_mut().read_all(&mut buf) == 0 {
         return None;
     }
     let iter = DirectoryParser::new(&buf);
@@ -29,7 +29,7 @@ pub fn dir_link(i_manager: &mut inode_manager::InodeManager, inode: inode_manage
         return false;
     }
     let mut buf = vec![];
-    if inode.borrow().read_all(&mut buf) == 0 {
+    if inode.borrow_mut().read_all(&mut buf) == 0 {
         return false;
     }
     let iter = DirectoryParser::new(&buf);
@@ -55,7 +55,7 @@ pub fn dir_unlink(i_manager: &mut inode_manager::InodeManager, inode: inode_mana
         return false;
     }
     let mut buf = vec![];
-    if inode.borrow().read_all(&mut buf) == 0 {
+    if inode.borrow_mut().read_all(&mut buf) == 0 {
         return false;
     }
     let iter = DirectoryParser::new(&buf);
