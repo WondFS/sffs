@@ -21,13 +21,13 @@ impl FakeDisk {
     }
 
     pub fn fake_disk_read(&self, block_no: u32) -> [[u8; 4096]; 128] {
-        let mut data = vec![];
+        let mut data = [[0; 4096]; 128];
         let start_index = block_no * 128;
         let end_index = (block_no + 1) * 128;
         for index in start_index..end_index {
-            data.push(self.data[index as usize]);
+            data[(index - start_index) as usize] = self.data[index as usize];
         }
-        data.try_into().unwrap()
+        data
     }
     
     pub fn fake_disk_write(&mut self, address: u32, data: [u8; 4096]) {
@@ -40,5 +40,31 @@ impl FakeDisk {
         for index in start_index..end_index {
             self.data[index as usize] = [0; 4096];
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn basics() {
+        // Create 4MB Block
+        let mut disk = FakeDisk::new(1024);
+
+        let data = [1; 4096];
+        disk.fake_disk_write(100, data);
+        
+        let data = disk.fake_disk_read(0);
+        assert_eq!(data[100], [1; 4096]);
+
+        let data =[2; 4096];
+        disk.fake_disk_write(256, data);
+        let data = disk.fake_disk_read(1);
+        assert_eq!(data[2], [0; 4096]);
+        
+        disk.fake_disk_erase(2);
+        let data = disk.fake_disk_read(1);
+        assert_eq!(data[0], [0; 4096]);
     }
 }

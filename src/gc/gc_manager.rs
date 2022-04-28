@@ -38,35 +38,57 @@ impl GCManager {
                 gc_block = block.clone();
             }
         }
-        let mut used_entries: Vec<(u32, u32, i32)> = vec![];
+        let mut used_entries: Vec<(u32, u32, u32, u32)> = vec![];
         let block_no = gc_block.block_no;
         let start_index = block_no * 128;
         let end_index = (block_no + 1) * 128;
         let mut size = 0;
-        let mut last_ino = 0;
+        let mut last_entry: Option<(u32, u32, u32, u32)> = None;
         for address in start_index..end_index {
             let status = self.main_table.get_page(address);
             match status {
                 PageUsedStatus::Busy(ino) => {
-                    let last = used_entries.last();
-                    if last.is_some() {
-                        last_ino = last.unwrap().0;
-                        if last_ino == ino {
-                            
+                    if last_entry.is_some() {
+                        if last_entry.unwrap().1 == ino {
+                            size += 1;
+                        } else {
+                            last_entry.unwrap().2 = size;
+                            used_entries.push(last_entry.unwrap());
+                            last_entry = Some((ino, 0, address, 0));
                         }
+                    } else {
+                        last_entry = Some((ino, 0, address, 0));
+                        size = 1;
                     }
-
-                    used_entries.push((address, ino, size));
-                    size += 1;
                 }
                 _ => {
-                    size = 0;
+                    if last_entry.is_some() {
+                        used_entries.push(last_entry.unwrap());
+                        last_entry = None;
+                        size = 0;
+                    }
                 }
             }
         }
+        if last_entry.is_some() {
+            used_entries.push(last_entry.unwrap());
+        }
+        for entry in used_entries.iter_mut() {
+            let d_address = self.find_next_pos_to_write(entry.1);
+            entry.3 = d_address.unwrap();
+        }
         let mut gc_group = gc_event::GCEventGroup::new();
-        for used_entry in used_entries {
-
+        let mut index = 0;
+        for entry in used_entries {
+            let event = gc_event::MoveGCEvent {
+                index,
+                ino: entry.0,
+                size: entry.1,
+                o_address: entry.2,
+                d_address: entry.3,
+            };
+            gc_group.events.push(gc_event::GCEvent::Move(event));
+            index += 1;
         }
         let event = gc_event::EraseGCEvent {
             index: 0,

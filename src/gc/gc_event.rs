@@ -40,6 +40,8 @@ pub struct EraseGCEvent {
 #[derive(Copy, Clone)]
 pub struct MoveGCEvent {
     pub index: u32,
+    pub ino: u32,
+    pub size: u32,
     pub o_address: u32,
     pub d_address: u32,
 }
