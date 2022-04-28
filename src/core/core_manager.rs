@@ -60,6 +60,14 @@ impl CoreManager {
         CoreManager::transfer_raw_inode_to_inode(&raw_inode)
     }
 
+    pub fn get_raw_inode(&mut self, ino: u32) -> raw_inode::RawInode {
+        self.kv.get_inode(ino)
+    }
+
+    pub fn update_raw_inode(&mut self, raw_inode: raw_inode::RawInode) {
+        self.kv.update_inode(raw_inode);
+    }
+
     pub fn update_inode(&mut self, inode: inode::Inode) {
         let mut inode = inode;
         for entry in inode.data.iter_mut() {
@@ -122,7 +130,32 @@ impl CoreManager {
                     }
                 }
                 gc_event::GCEvent::Move(event) => {
-                    todo!()
+                    let o_address = event.o_address;
+                    let d_address = event.d_address;
+                    let size = 3;
+                    let ino = 1;
+                    let mut data = vec![];
+                    for i in o_address..o_address + size {
+                        self.dirty_pit(i);
+                        data.push(self.read_page(i));
+                        let v_address = self.vam.get_virtual_address(i);
+                        if v_address.is_some() {
+                            self.vam.update_map(i, v_address.unwrap());
+                        }
+                    }
+                    for i in d_address..d_address + size {
+                        self.update_bit(i, true);
+                        self.update_pit(i, ino);
+                        self.write_page(i, data[(i - d_address) as usize]);
+                    }
+                    let mut raw_inode = self.get_raw_inode(ino);
+                    for entry in raw_inode.data.iter_mut() {
+                        if entry.address == o_address {
+                            entry.address = d_address;
+                            break;
+                        }
+                    }
+                    self.update_raw_inode(raw_inode);
                 }
                 _ => ()
             }
@@ -476,6 +509,17 @@ impl CoreManager {
     }
 
     pub fn sort_gc_event(event_group: &mut gc_event::GCEventGroup) {
-
+        let len = event_group.events.len();
+        for i in 0..len {
+            for j in 0..len - 1 - i {
+                let index_1 =  event_group.events[j].get_index();
+                let index_2 = event_group.events[j+1].get_index();
+                if index_1 > index_2 {
+                    let temp = event_group.events[j];
+                    event_group.events[j] = event_group.events[j+1];
+                    event_group.events[j+1] = temp;
+                }
+            }
+        }
     }
 }
