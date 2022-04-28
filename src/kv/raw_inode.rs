@@ -1,3 +1,4 @@
+#[derive(Copy, Clone)]
 pub struct RawEntry {
     pub len: u32,
     pub size: u32,

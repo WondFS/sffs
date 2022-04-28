@@ -34,7 +34,7 @@ impl GCManager {
     pub fn generate_gc_event(&mut self) -> gc_event::GCEventGroup {
         let mut gc_block = self.block_table.table[0];
         for block in self.block_table.table.iter() {
-            if block.reserved_size > gc_block.reserved_size {
+            if block.reserved_size < gc_block.reserved_size {
                 gc_block = block.clone();
             }
         }

@@ -2,7 +2,6 @@
 // File-system system calls.
 //
 
-use std::string;
 use std::sync::Arc;
 use crate::fake_proc;
 use crate::inode::inode;
