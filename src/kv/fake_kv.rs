@@ -13,6 +13,9 @@ impl FakeKV {
     }
 
     pub fn get_inode(&mut self, ino: u32) -> raw_inode::RawInode {
+        if !self.map.contains_key(&ino) {
+            panic!("FakeKV: get no that inode");
+        }
         let raw_inode = self.map.get(&ino).unwrap();
         let mut data = vec![];
         for entry in raw_inode.data.iter() {
@@ -32,16 +35,25 @@ impl FakeKV {
 
     pub fn update_inode(&mut self, inode: raw_inode::RawInode) {
         let ino = inode.ino;
+        if !self.map.contains_key(&ino) {
+            panic!("FakeKV: update no that inode");
+        }
         *self.map.get_mut(&ino).unwrap() = inode;
     }
 
     pub fn delete_inode(&mut self, ino: u32) {
+        if !self.map.contains_key(&ino) {
+            panic!("FakeKV: delete no that inode");
+        }
         self.map.remove(&ino);
     }
 
-    pub fn allocate_inode(&mut self) -> raw_inode::RawInode {
+    pub fn allocate_inode(&mut self, ino: u32) -> raw_inode::RawInode {
+        if self.map.contains_key(&ino) {
+            panic!("FakeKV: allocate ino has existing");
+        }
         let raw_inode = raw_inode::RawInode {
-            ino: 0,
+            ino,
             uid: 0,
             gid: 0,
             size: 0,
@@ -50,9 +62,9 @@ impl FakeKV {
             file_type: 0,
             data: vec![],
         };
-        self.map.insert(0, raw_inode);
+        self.map.insert(ino, raw_inode);
         let raw_inode = raw_inode::RawInode {
-            ino: 0,
+            ino,
             uid: 0,
             gid: 0,
             size: 0,
@@ -71,6 +83,15 @@ mod test {
 
     #[test]
     fn basics() {
+        let mut kv = FakeKV::new();
         
+        let mut inode = kv.allocate_inode(20);
+        inode.gid = 100;
+        inode.file_type = 1;
+        kv.update_inode(inode);
+
+        let inode = kv.get_inode(20);
+        assert_eq!(inode.gid, 100);
+        assert_eq!(inode.file_type, 1);
     }
 }

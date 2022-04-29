@@ -44,7 +44,7 @@ impl CoreManager {
 // KV Module
 impl CoreManager {
     pub fn allocate_inode(&mut self) -> inode::Inode {
-        let raw_inode = self.kv.allocate_inode();
+        let raw_inode = self.kv.allocate_inode(0);
         CoreManager::transfer_raw_inode_to_inode(&raw_inode)
     }
 
