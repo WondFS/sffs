@@ -44,7 +44,7 @@ impl CoreManager {
 // KV Module
 impl CoreManager {
     pub fn allocate_inode(&mut self) -> inode::Inode {
-        let raw_inode = self.kv.allocate_inode(0);
+        let raw_inode = self.kv.allocate_inode();
         CoreManager::transfer_raw_inode_to_inode(&raw_inode)
     }
 
@@ -319,8 +319,8 @@ impl CoreManager {
 
     pub fn write_block(&mut self, block_no: u32, data: [[u8; 4096]; 128]) {
         let mut address = block_no * 128 - 127;
-        for data in data.into_iter() {
-            self.write_page(address, data);
+        for data in data.iter() {
+            self.write_page(address, *data);
             address += 1;
         }
     }

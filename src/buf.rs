@@ -17,7 +17,6 @@ impl Buf {
 }
 
 pub struct BufCache {
-    pub size: usize,
     pub capacity: usize,
     pub cache: lru_cache::LRUCache<Buf>,
     pub disk_manager: disk_manager::DiskManager,
@@ -25,9 +24,8 @@ pub struct BufCache {
 
 impl BufCache {
     pub fn new() -> BufCache {
-        let capacity = 4096;
+        let capacity = 1024;
         BufCache {
-            size: 0,
             capacity: capacity as usize,
             cache: lru_cache::LRUCache::new(capacity as usize),
             disk_manager: disk_manager::DiskManager::new(true),
@@ -41,8 +39,8 @@ impl BufCache {
         }
         let block_no = address / 128;
         let data = self.disk_manager.disk_read(block_no);
-        for (index, page) in data.into_iter().enumerate() {
-            self.put_data(address + index as u32, page);
+        for (index, page) in data.iter().enumerate() {
+            self.put_data(address + index as u32, *page);
         }
         self.get_data(address).unwrap()
     }
@@ -90,12 +88,17 @@ mod test {
         let mut cache = BufCache::new();
 
         let data = [1; 4096];        
-        cache.write(0, 100, data);
+        cache.put_data(100, data);
+        assert_eq!(cache.get_data(100).unwrap(), [1; 4096]);
+        cache.remove_data(100);
+        assert_eq!(cache.get_data(100), None);
 
+        cache.write(0, 100, data);
         let data = cache.read(0, 100);
         assert_eq!(data, [1; 4096]);
 
         cache.erase(0, 0);
-
+        let data = cache.read(0, 100);
+        assert_eq!(data, [0; 4096]);
     }
 }

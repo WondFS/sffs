@@ -2,7 +2,7 @@ use crate::gc::gc_event;
 use crate::gc::main_table;
 use crate::gc::block_table;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PageUsedStatus {
     Clean,
     Dirty,
@@ -18,14 +18,25 @@ impl GCManager {
     pub fn new() -> GCManager {
         GCManager {
             main_table: main_table::MainTable::new(),
-            block_table: block_table::BlockTable::new(4096),
+            block_table: block_table::BlockTable::new(32),
         }
     }
 
-    pub fn find_next_pos_to_write(&mut self, size: u32) -> Option<u32> {
+    pub fn find_next_pos_to_write(&self, size: u32) -> Option<u32> {
         for block in self.block_table.table.iter() {
-            if block.reserved_size > size {
-                return Some(block.reserved_offset);
+            if block.reserved_size >= size {
+                let offset = block.reserved_offset;
+                return Some((block.block_no * 128) as u32 + offset);
+            }
+        }
+        None
+    }
+
+    pub fn find_next_pos_to_write_except(&self, size: u32, block_no: u32) -> Option<u32> {
+        for block in self.block_table.table.iter() {
+            if block.reserved_size >= size && block.block_no != block_no {
+                let offset = block.reserved_offset;
+                return Some((block.block_no * 128) as u32 + offset);
             }
         }
         None
@@ -35,7 +46,7 @@ impl GCManager {
         let mut gc_block = self.block_table.table[0];
         for block in self.block_table.table.iter() {
             if block.reserved_size < gc_block.reserved_size {
-                gc_block = block.clone();
+                gc_block = *block;
             }
         }
         let mut used_entries: Vec<(u32, u32, u32, u32)> = vec![];
@@ -49,10 +60,10 @@ impl GCManager {
             match status {
                 PageUsedStatus::Busy(ino) => {
                     if last_entry.is_some() {
-                        if last_entry.unwrap().1 == ino {
+                        if last_entry.unwrap().0 == ino {
                             size += 1;
                         } else {
-                            last_entry.unwrap().2 = size;
+                            last_entry.unwrap().1 = size;
                             used_entries.push(last_entry.unwrap());
                             last_entry = Some((ino, 0, address, 0));
                         }
@@ -63,6 +74,7 @@ impl GCManager {
                 }
                 _ => {
                     if last_entry.is_some() {
+                        last_entry.as_mut().unwrap().1 = size;
                         used_entries.push(last_entry.unwrap());
                         last_entry = None;
                         size = 0;
@@ -71,10 +83,11 @@ impl GCManager {
             }
         }
         if last_entry.is_some() {
+            last_entry.unwrap().1 = size;
             used_entries.push(last_entry.unwrap());
         }
         for entry in used_entries.iter_mut() {
-            let d_address = self.find_next_pos_to_write(entry.1);
+            let d_address = self.find_next_pos_to_write_except(entry.1, block_no);
             entry.3 = d_address.unwrap();
         }
         let mut gc_group = gc_event::GCEventGroup::new();
@@ -91,7 +104,7 @@ impl GCManager {
             index += 1;
         }
         let event = gc_event::EraseGCEvent {
-            index: 0,
+            index,
             block_no,
         };
         gc_group.events.push(gc_event::GCEvent::Erase(event));
@@ -114,7 +127,37 @@ impl GCManager {
         self.main_table.set_page(address, status);
     }
 
-    pub fn get_table(&mut self, address: u32) -> PageUsedStatus {
+    pub fn get_table(&self, address: u32) -> PageUsedStatus {
         self.main_table.get_page(address)
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn basics() {
+        let mut manager = GCManager::new();
+
+        for address in 0..32 * 128 {
+            manager.set_table(address, PageUsedStatus::Clean);
+        }
+
+        assert_eq!(manager.find_next_pos_to_write(5), Some(0));
+        
+        manager.set_table(0, PageUsedStatus::Busy(0));
+        manager.set_table(1, PageUsedStatus::Busy(0));
+        manager.set_table(2, PageUsedStatus::Busy(0));
+        manager.set_table(3, PageUsedStatus::Busy(0));
+        manager.set_table(4, PageUsedStatus::Busy(0));
+
+        assert_eq!(manager.get_table(0), PageUsedStatus::Busy(0));
+        assert_eq!(manager.find_next_pos_to_write(128), Some(128));
+
+        let event = manager.generate_gc_event();
+        assert_eq!(event.events[0], gc_event::GCEvent::Move(gc_event::MoveGCEvent{ index: 0, ino: 0, size: 5, o_address: 0, d_address: 128 }));
+        assert_eq!(event.events[1], gc_event::GCEvent::Erase(gc_event::EraseGCEvent{ index: 1, block_no: 0 }));
     }
 }

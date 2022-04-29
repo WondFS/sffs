@@ -51,6 +51,10 @@ impl <T: Copy> LRUCache<T> {
         self.size
     }
 
+    pub fn contains_key(&self, key: u32) -> bool {
+        self.map.contains_key(&key)
+    }
+
     pub fn get(&mut self, key: u32) -> Option<Ref<T>> {
         if !self.map.contains_key(&key) {
             return None;

@@ -30,7 +30,7 @@ impl FakeDisk {
 
     pub fn fake_disk_read(&self, block_no: u32) -> [[u8; 4096]; 128] {
         if block_no > self.block_num - 1 {
-            panic!("FakeKV: read at to big block number");
+            panic!("FakeKV: read at too big block number");
         }
         let mut data = [[0; 4096]; 128];
         let start_index = block_no * 128;
@@ -54,7 +54,7 @@ impl FakeDisk {
     
     pub fn fake_disk_erase(&mut self, block_no: u32) {
         if block_no > self.block_num - 1 {
-            panic!("FakeKV: erase at to big block number");
+            panic!("FakeKV: erase at too big block number");
         }
         let start_index = block_no * 128;
         let end_index = (block_no + 1) * 128;

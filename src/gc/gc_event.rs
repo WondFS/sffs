@@ -10,7 +10,7 @@ impl GCEventGroup {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum GCEvent {
     Erase(EraseGCEvent),
     Move(MoveGCEvent),
@@ -30,14 +30,14 @@ impl GCEvent {
 }
 
 // 以Block为单位
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct EraseGCEvent {
     pub index: u32,
     pub block_no: u32,
 }
 
 // 以Page为单位
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct MoveGCEvent {
     pub index: u32,
     pub ino: u32,
