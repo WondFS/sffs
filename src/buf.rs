@@ -1,5 +1,5 @@
 use crate::util::lru_cache;
-use crate::driver::disk;
+use crate::driver::disk_manager;
 
 #[derive(Clone, Copy)]
 pub struct Buf {
@@ -20,6 +20,7 @@ pub struct BufCache {
     pub size: usize,
     pub capacity: usize,
     pub cache: lru_cache::LRUCache<Buf>,
+    pub disk_manager: disk_manager::DiskManager,
 }
 
 impl BufCache {
@@ -29,8 +30,9 @@ impl BufCache {
             size: 0,
             capacity: capacity as usize,
             cache: lru_cache::LRUCache::new(capacity as usize),
+            disk_manager: disk_manager::DiskManager::new(true),
         }
-    }   
+    }
 
     pub fn read(&mut self, dev: u8, address: u32) -> [u8; 4096] {
         let data = self.get_data(address);
@@ -38,7 +40,7 @@ impl BufCache {
             return data.unwrap();
         }
         let block_no = address / 128;
-        let data = disk::disk_read(block_no);
+        let data = self.disk_manager.disk_read(block_no);
         for (index, page) in data.into_iter().enumerate() {
             self.put_data(address + index as u32, page);
         }
@@ -47,7 +49,7 @@ impl BufCache {
 
     pub fn write(&mut self, dev: u8, address: u32, data: [u8; 4096]) {
         self.put_data(address, data);
-        disk::disk_write(address, data);
+        self.disk_manager.disk_write(address, data);
     }
 
     pub fn erase(&mut self, dev: u8, block_no: u32) {
@@ -56,7 +58,7 @@ impl BufCache {
         for address in start_address..end_address {
             self.remove_data(address);
         }
-        disk::disk_erase(block_no);
+        self.disk_manager.disk_erase(block_no);
     }
 }
 
@@ -76,5 +78,24 @@ impl BufCache {
 
     pub fn remove_data(&mut self, address: u32) {
         self.cache.remove(address);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    
+    #[test]
+    fn basics() {
+        let mut cache = BufCache::new();
+
+        let data = [1; 4096];        
+        cache.write(0, 100, data);
+
+        let data = cache.read(0, 100);
+        assert_eq!(data, [1; 4096]);
+
+        cache.erase(0, 0);
+
     }
 }
