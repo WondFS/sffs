@@ -3,7 +3,7 @@ use std::cmp::{max, min};
 use crate::core::core_manager;
 use crate::inode::inode_event;
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum InodeFileType {
     File,
     Directory,

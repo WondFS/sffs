@@ -31,6 +31,12 @@ impl<T: Copy> Array1<T> {
     pub fn iter(&self) -> Iter1<'_, T> {
         Iter1::new(&self.array)
     }
+
+    pub fn dup(&self) -> Array1<T> {
+        Array1 {
+            array: self.array.dup(),
+        }
+    }
 }
 
 pub struct Iter1<'a, T> {
@@ -97,6 +103,12 @@ impl<T: Copy> Array2<T> {
     pub fn iter(&self) -> Iter2<'_, T> {
         Iter2::new(&self.array)
     }
+
+    pub fn dup(&self) -> Array2<T> {
+        Array2 {
+            array: self.array.dup(),
+        }
+    }
 }
 
 pub struct Iter2<'a, T> {
@@ -154,6 +166,9 @@ mod test {
             assert_eq!(temp, data[i]);
         }
 
+        let dup = arr_1.dup();
+        assert_eq!(dup, arr_1);
+
         let mut arr_2 = Array2::<u8>::new(10000, 10000);
         arr_2.init(100);
         arr_2.set(8000, 6752, 67);
@@ -174,5 +189,8 @@ mod test {
         for (i, temp) in arr_2.iter().enumerate() {
             assert_eq!(temp, data[i]);
         }
+
+        let dup = arr_2.dup();
+        assert_eq!(dup, arr_2);
     }
 }

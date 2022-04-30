@@ -7,7 +7,6 @@ pub struct SArray<T> {
 }
 
 impl<T: Copy> SArray<T> {
-
     pub fn new(dimension: u8, size: Vec<u32>) -> SArray<T> {
         if dimension as usize != size.len() {
             panic!("SArray: new not matched size");
@@ -66,6 +65,15 @@ impl<T: Copy> SArray<T> {
         self.memory[off as usize].unwrap()
     }
 
+    pub fn dup(&self) -> SArray<T> {
+        SArray {
+            len: self.len,
+            size: self.size.clone(),
+            dimension: self.dimension,
+            memory: self.memory.clone(),
+        }
+    }
+
     fn get_off(&self, pos: &Vec<u32>) -> u32 {
         self.check_off(pos);
         let len = pos.len();
@@ -105,5 +113,7 @@ mod test {
         assert_eq!(arr.get_off(&vec![0, 0, 0]), 0);
         assert_eq!(arr.get(vec![3, 4, 5]), 0);
         assert_eq!(arr.get_off(&vec![3, 4, 5]), 119);
+        let dup = arr.dup();
+        assert_eq!(dup, arr);
     }
 }

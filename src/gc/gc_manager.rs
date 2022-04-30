@@ -18,7 +18,7 @@ impl GCManager {
     pub fn new() -> GCManager {
         GCManager {
             main_table: main_table::MainTable::new(),
-            block_table: block_table::BlockTable::new(32),
+            block_table: block_table::BlockTable::new(4096 * 8 * 128),
         }
     }
 

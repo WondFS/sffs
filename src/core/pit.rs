@@ -43,6 +43,7 @@ impl PIT {
             panic!("PIT: delete not that page");
         }
         self.table.remove(&address).unwrap();
+        self.sync = true;
     }
 
     pub fn encode(&self) -> Array2<u8> {
@@ -57,7 +58,7 @@ impl PIT {
             let byte_1 = (value >> 24) as u8;
             let byte_2 = (value >> 16) as u8;
             let byte_3 = (value >> 8) as u8;
-            let byte_4 = (value >> 8) as u8;
+            let byte_4 = value as u8;
             let start_index = index * 4;
             temp.set(start_index as u32, byte_1);
             temp.set((start_index + 1) as u32, byte_2);

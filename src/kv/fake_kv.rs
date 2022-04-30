@@ -9,7 +9,7 @@ pub struct FakeKV {
 impl FakeKV {
     pub fn new() -> FakeKV {
         FakeKV {
-            next_ino: 0,
+            next_ino: 1,
             map: HashMap::new(),
         }
     }
