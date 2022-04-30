@@ -215,13 +215,13 @@ impl CoreManager {
     }
 
     pub fn sync_bit(&mut self) {
-        if self.bit.need_sync() {
-            let data = self.bit.encode();
-            self.write_block(2, data);
-            self.write_block(1, data);
-            self.erase_block(2);
-            self.bit.sync();
-        }
+        // if self.bit.need_sync() {
+        //     let data = self.bit.encode();
+        //     self.write_block(2, data);
+        //     self.write_block(1, data);
+        //     self.erase_block(2);
+        //     self.bit.sync();
+        // }
     }
 }
 
@@ -521,6 +521,16 @@ mod test {
 
     #[test]
     fn basics() {
+        
+    }
+
+    #[test]
+    fn kv() {
+
+    }
+
+    #[test]
+    fn gc() {
 
     }
 }

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use crate::util::array;
 
 pub struct BIT {
     pub table: HashMap<u32, bool>, // true: dirty/used false: clean
@@ -53,20 +54,22 @@ impl BIT {
         }
     }
 
-    pub fn encode(&self) -> [[u8; 4096]; 128] {
-        let mut res: [u8; 128 * 4096] = [0; 128 * 4096];
+    pub fn encode(&self) -> array::Array2<u8> {
+        let mut res = array::Array1::<u8>::new(128 * 4096);
+        res.init(0);
         for (key, value) in &self.table {
             let index = key / 8;
             let off = key % 8;
             if *value {
-                res[index as usize] = res[index as usize] | 1 << off;
+                res.set(index, res.get(index) | 1 << off);
             }
         }
-        let mut data: [[u8; 4096]; 128] = [[0; 4096]; 128];
+        let mut data = array::Array2::<u8>::new(128, 4096);
+        data.init(0);
         for (index, temp) in res.iter().enumerate() {
             let i = index / 4096;
             let j = index % 4096;
-            data[i][j] = *temp;
+            data.set(i as u32, j as u32, temp);
         }
         data
     }
@@ -87,21 +90,20 @@ mod test {
     #[test]
     fn basics() {
         let mut bit = BIT::new();
-        let mut data: [[u8; 4096]; 128] = [[0; 4096]; 128];
-        data[100][3] = 3;
-        data[10][2] = 68;
-        for (i, page) in data.iter().enumerate() {
-            for (j, byte) in page.iter().enumerate() {
-                let mut byte = byte.clone();
-                for k in 0..8 {
-                    let index = i * 4096 * 8 + j * 8 + k;
-                    if byte & 1 == 1 {
-                        bit.init_page(index as u32, true);
-                    } else {
-                        bit.init_page(index as u32, false);
-                    }
-                    byte = byte >> 1;
+        let mut data = array::Array2::<u8>::new(128, 4096);
+        data.init(0);
+        data.set(100, 3, 3);
+        data.set(10, 2, 68);
+        for (i, byte) in data.iter().enumerate() {
+            let mut byte = byte;
+            for k in 0..8 {
+                let index = i * 8 + k;
+                if byte & 1 == 1 {
+                    bit.init_page(index as u32, true);
+                } else {
+                    bit.init_page(index as u32, false);
                 }
+                byte = byte >> 1;
             }
         }
         assert_eq!(bit.encode(), data);
