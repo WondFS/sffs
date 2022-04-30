@@ -450,3 +450,13 @@ impl Inode {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn basics() {
+        
+    }
+}

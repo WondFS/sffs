@@ -63,7 +63,7 @@ impl GCManager {
                         if last_entry.unwrap().0 == ino {
                             size += 1;
                         } else {
-                            last_entry.unwrap().1 = size;
+                            last_entry.as_mut().unwrap().1 = size;
                             used_entries.push(last_entry.unwrap());
                             last_entry = Some((ino, 0, address, 0));
                         }
@@ -83,7 +83,7 @@ impl GCManager {
             }
         }
         if last_entry.is_some() {
-            last_entry.unwrap().1 = size;
+            last_entry.as_mut().unwrap().1 = size;
             used_entries.push(last_entry.unwrap());
         }
         for entry in used_entries.iter_mut() {

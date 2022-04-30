@@ -84,3 +84,13 @@ impl InodeManager {
         false
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn basics() {
+        
+    }
+}

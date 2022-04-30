@@ -227,39 +227,32 @@ impl CoreManager {
 
 // 管理PIT Region
 impl CoreManager {
+    // 因为会爆栈，暂时改成1个Block
     pub fn read_pit(&mut self) {
-        let mut data_1 = vec![];
-        let mut data_2 = vec![];
-        for i in 0..15 {
-            data_1.push(self.read_block(2+i));
-        }
-        for i in 0..15 {
-            data_2.push(self.read_block(18+i));
-        }
-        for i in 0..15 {
-            let mut flag = false;
-            for page in data_2.get(i).unwrap().iter() {
-                for byte in page.iter() {
-                    if byte & 0b1111_1111 != 0 {
-                        flag = true;
-                        break;
-                    }
+        let mut data_1 = self.read_block(3);
+        let data_2 = self.read_block(4);
+        let mut flag = false;
+        for page in data_2.iter() {
+            for byte in page.iter() {
+                if byte & 0b1111_1111 != 0 {
+                    flag = true;
+                    break;
                 }
             }
-            if flag {
-                self.erase_block((2+i) as u32);
-                self.write_block((2+i) as u32, data_2.get(i).unwrap().clone());
-                self.erase_block((18+i) as u32);
-                *data_1.get_mut(i).unwrap() = data_2.get(i).unwrap().clone();
-            }
         }
-        self.set_pit(data_1.try_into().unwrap())
+        if flag {
+            self.erase_block(1);
+            self.write_block(1, data_2.clone());
+            self.erase_block(2);
+            data_1 = data_2;
+        }
+        self.set_pit(data_1)
     }
 
-    pub fn set_pit(&mut self, data: [[[u8; 4096]; 128]; 32]) {
+    pub fn set_pit(&mut self, data: [[u8; 4096]; 128]) {
         let iter = pit::DataRegion::new(data);
         for (index, ino) in iter.enumerate() {
-            self.pit.set_page(index as u32, ino);
+            self.pit.init_page(index as u32, ino);
             self.set_main_table_page(index as u32, PageUsedStatus::Busy(ino));
         }
     }
@@ -285,11 +278,9 @@ impl CoreManager {
     pub fn sync_pit(&mut self) {
         if self.pit.need_sync() {
             let data = self.pit.encode();
-            for (index, block) in data.iter().enumerate() {
-                self.write_block((18+index) as u32, block.clone());
-                self.write_block((2+index) as u32, block.clone());
-                self.erase_block((18+index) as u32);
-            }
+            self.write_block(4, data);
+            self.write_block(3, data);
+            self.erase_block(4);
             self.pit.sync();
         }
     }
@@ -521,5 +512,15 @@ impl CoreManager {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn basics() {
+
     }
 }

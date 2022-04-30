@@ -150,7 +150,7 @@ impl<T: Copy> LRUCache<T> {
         self.map.insert(entry.key,Some(new_head));
     }
 
-    pub fn pop_back(&mut self) -> Option<T> {
+    fn pop_back(&mut self) -> Option<T> {
         self.tail.take().map(|old_tail| {
             match old_tail.borrow_mut().prev.take() {
                 Some(new_tail) => {
