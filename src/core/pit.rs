@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use crate::util::array;
 
 pub struct PIT {
     pub table: HashMap<u32, u32>,  // page -> ino
@@ -149,16 +150,16 @@ mod test {
 
     #[test]
     fn basics() {
-        let mut pit = PIT::new();
-        let mut data = [[0; 4096]; 128];
-        let iter = DataRegion::new(data);
-        for (index, ino) in iter.enumerate() {
-            if ino != 0 {
-                pit.init_page(index as u32, ino);
-            }
-        }
+        // let mut pit = PIT::new();
+        // let data = [[0; 4096]; 128];
+        // let iter = DataRegion::new(data);
+        // for (index, ino) in iter.enumerate() {
+            // if ino != 0 {
+                // pit.init_page(index as u32, ino);
+            // }
+        // }
         // let mut data: [[u8; 4096]; 128] = [[0; 4096]; 128];
-        let temp = pit.aaa();
+        // let temp = pit.aaa();
         // let mut data: [[u8; 4096]; 128] = [[0; 4096]; 128];
         // PIT::ecode_util(temp);
         // assert_eq!(pit.encode(), data);
@@ -171,9 +172,9 @@ mod test {
         //     data[i][j] = *value;
         // }
 
-        let mut data_1: [[u8; 4096]; 64] = [[0; 4096]; 64];
-        let mut data_2: [[u8; 4096]; 64] = [[0; 4096]; 64];
-        let mut data: [[u8; 4096]; 128] = [[0; 4096]; 128];
+        // let mut data_1: [[u8; 4096]; 64] = [[0; 4096]; 64];
+        // let mut data_2: [[u8; 4096]; 64] = [[0; 4096]; 64];
+        // let mut data: [[u8; 4096]; 128] = [[0; 4096]; 128];
         // for (index, value) in temp.into_iter().enumerate() {
         //     let i = index / 4096;
         //     let j = index % 4096;
