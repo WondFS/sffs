@@ -1,5 +1,6 @@
 use crate::util::s_array;
 
+#[derive(PartialEq, Debug)]
 pub struct Array1<T> {
     array: s_array::SArray<T>,
 }
@@ -60,6 +61,7 @@ impl<'a, T: Copy> Iterator for Iter1<'a, T> {
     }
 }
 
+#[derive(PartialEq, Debug)]
 pub struct Array2<T> {
     array: s_array::SArray<T>,
 }

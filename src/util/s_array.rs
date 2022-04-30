@@ -1,4 +1,4 @@
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct SArray<T> {
     len: u32,
     size: Vec<u32>,

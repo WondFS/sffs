@@ -250,11 +250,11 @@ impl CoreManager {
     }
 
     pub fn set_pit(&mut self, data: [[u8; 4096]; 128]) {
-        let iter = pit::DataRegion::new(data);
-        for (index, ino) in iter.enumerate() {
-            self.pit.init_page(index as u32, ino);
-            self.set_main_table_page(index as u32, PageUsedStatus::Busy(ino));
-        }
+        // let iter = pit::DataRegion::new(data);
+        // for (index, ino) in iter.enumerate() {
+        //     self.pit.init_page(index as u32, ino);
+        //     self.set_main_table_page(index as u32, PageUsedStatus::Busy(ino));
+        // }
     }
 
     pub fn update_pit(&mut self, address: u32, status: u32) {
@@ -277,11 +277,11 @@ impl CoreManager {
     
     pub fn sync_pit(&mut self) {
         if self.pit.need_sync() {
-            let data = self.pit.encode();
-            self.write_block(4, data);
-            self.write_block(3, data);
-            self.erase_block(4);
-            self.pit.sync();
+            // let data = self.pit.encode();
+            // self.write_block(4, data);
+            // self.write_block(3, data);
+            // self.erase_block(4);
+            // self.pit.sync();
         }
     }
 }
