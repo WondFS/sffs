@@ -41,7 +41,7 @@ pub struct Inode {
     pub n_link: u8,
     pub lock: Mutex<bool>,
     pub data: Vec<InodeEntry>,
-    pub core: core_manager::CoreManager,
+    pub core: Option<core_manager::CoreManager>,
 }
 
 impl Inode {
@@ -57,37 +57,8 @@ impl Inode {
             valid: false,
             ref_cnt: 0,
             lock: Mutex::new(false),
-            core: core_manager::CoreManager::new(),
+            core: None,
         }
-    }
-
-    pub fn get_stat(&self) -> InodeStat {
-        InodeStat {
-            file_type: self.file_type,
-            ino: self.ino,
-            size: self.size,
-            uid: self.uid,
-            gid: self.gid,
-            ref_cnt: self.ref_cnt,
-            n_link: self.n_link,
-        }
-    }
-
-    pub fn modify_stat(&mut self, stat: InodeStat) -> bool {
-        let mut event_group = inode_event::InodeEventGroup::new();
-        event_group.inode = self.copy_inode();
-        let event = inode_event::ModifyInodeStatInodeEvent {
-            file_type: stat.file_type,
-            ino: stat.ino,
-            size: stat.size,
-            uid: stat.uid,
-            gid: stat.gid,
-            n_link: stat.n_link,
-        };
-        event_group.events.push(inode_event::InodeEvent::ModifyStat(event));
-        let inode = self.core.dispose_event_group(event_group).unwrap();
-        self.update_by_another_inode(inode);
-        true
     }
 
     pub fn read_all(&mut self, buf: &mut Vec<u8>) -> i32 {
@@ -99,7 +70,7 @@ impl Inode {
         let mut len = len;
         let mut count = 0;
         let mut flag = false;
-        if offset > self.size {
+        if offset >= self.size {
             return -1;
         }
         if offset + len > self.size {
@@ -143,18 +114,24 @@ impl Inode {
         };
         let mut second_entry = None;
         let mut second_index = 0;
+        println!("-1");
         if offset > self.size {
             return false;
         }
-        for entry in self.data.iter_mut() {
-            if entry.offset + entry.len < new_entry.offset {
+        println!("0");
+        for entry in self.data.iter() {
+            if entry.offset + entry.len <= new_entry.offset {
+                println!("1");
                 index += 1;
                 continue
-            } else if entry.offset > new_entry.offset + new_entry.len {
+            } else if entry.offset >= new_entry.offset + new_entry.len {
+                println!("2");
                 continue
             } else {
-                let valid_prev = max(0, new_entry.offset - entry.offset);
-                let valid_suffix = max(0, entry.offset + entry.len - new_entry.offset - new_entry.len);
+                let valid_prev = max(0, new_entry.offset as i32 - entry.offset as i32) as u32;
+                let valid_suffix = max(0, entry.offset as i32 + entry.len as i32 - new_entry.offset as i32 - new_entry.len as i32) as u32;
+                println!("prev {}", valid_prev);
+                println!("suffix {}", valid_suffix);
                 if valid_prev == 0 {
                     let event = inode_event::DeleteContentInodeEvent {
                         index,
@@ -167,7 +144,7 @@ impl Inode {
                         index,
                         offset: entry.offset,
                         len: valid_prev,
-                        size: valid_prev / 4096,
+                        size: valid_prev / 4096 + 1,
                         o_size: entry.size,
                         v_address: entry.address,
                     };
@@ -179,7 +156,7 @@ impl Inode {
                         index,
                         offset,
                         len,
-                        size: len / 4096,
+                        size: len / 4096 + 1,
                         content: buf.clone(),
                     };
                     event_group.events.push(inode_event::InodeEvent::AddContent(event));
@@ -191,16 +168,26 @@ impl Inode {
                         offset: entry.offset + entry.len - valid_suffix,
                         len: valid_suffix,
                         valid: false,
-                        size: valid_suffix / 4096,
+                        size: valid_suffix / 4096 + 1,
                         address: 0,
                     });
                     second_index = index;
                 }
             }
         }
+        if !flag {
+            let event = inode_event::AddContentInodeEvent {
+                index: self.data.len() as u32,
+                offset: new_entry.offset,
+                len: new_entry.len,
+                size: len / 4096 + 1,
+                content: buf.clone(),
+            };
+            event_group.events.push(inode_event::InodeEvent::AddContent(event));
+        }
         if second_entry.is_some() {
             let second_entry = second_entry.unwrap();
-            let data = self.read_entry(&second_entry, second_entry.offset, second_entry.offset + second_entry.offset);
+            let data = self.read_entry(&second_entry, second_entry.offset, second_entry.offset + second_entry.len);
             let event = inode_event::AddContentInodeEvent {
                 index: second_index,
                 offset: second_entry.offset,
@@ -210,7 +197,8 @@ impl Inode {
             };
             event_group.events.push(inode_event::InodeEvent::AddContent(event));
         }
-        let inode = self.core.dispose_event_group(event_group).unwrap();
+        event_group.debug();
+        let inode = self.core.as_mut().unwrap().dispose_event_group(event_group).unwrap();
         self.update_by_another_inode(inode);
         true
     }
@@ -299,7 +287,7 @@ impl Inode {
             };
             event_group.events.push(inode_event::InodeEvent::AddContent(event));
         }
-        let inode = self.core.dispose_event_group(event_group).unwrap();
+        let inode = self.core.as_mut().unwrap().dispose_event_group(event_group).unwrap();
         self.update_by_another_inode(inode);
         true
     }
@@ -370,13 +358,44 @@ impl Inode {
             };
             event_group.events.push(inode_event::InodeEvent::AddContent(event));
         }
-        let inode = self.core.dispose_event_group(event_group).unwrap();
+        let inode = self.core.as_mut().unwrap().dispose_event_group(event_group).unwrap();
         self.update_by_another_inode(inode);
         true
     }
 
     pub fn truncate_to_end(&mut self, offset: u32) -> bool {
         self.truncate(offset, self.size - offset)
+    }
+}
+
+impl Inode {
+    pub fn get_stat(&self) -> InodeStat {
+        InodeStat {
+            file_type: self.file_type,
+            ino: self.ino,
+            size: self.size,
+            uid: self.uid,
+            gid: self.gid,
+            ref_cnt: self.ref_cnt,
+            n_link: self.n_link,
+        }
+    }
+
+    pub fn modify_stat(&mut self, stat: InodeStat) -> bool {
+        let mut event_group = inode_event::InodeEventGroup::new();
+        event_group.inode = self.copy_inode();
+        let event = inode_event::ModifyInodeStatInodeEvent {
+            file_type: stat.file_type,
+            ino: stat.ino,
+            size: stat.size,
+            uid: stat.uid,
+            gid: stat.gid,
+            n_link: stat.n_link,
+        };
+        event_group.events.push(inode_event::InodeEvent::ModifyStat(event));
+        let inode = self.core.as_mut().unwrap().dispose_event_group(event_group).unwrap();
+        self.update_by_another_inode(inode);
+        true
     }
 
     pub fn dup(&mut self) -> bool {
@@ -386,8 +405,8 @@ impl Inode {
             size: self.size,
             uid: self.uid,
             gid: self.gid,
-            ref_cnt: self.ref_cnt + 1,
-            n_link: self.n_link,
+            ref_cnt: self.ref_cnt,
+            n_link: self.n_link + 1,
         };
         self.modify_stat(stat)
     }
@@ -396,7 +415,7 @@ impl Inode {
         let mut event_group = inode_event::InodeEventGroup::new();
         event_group.inode = self.copy_inode();
         event_group.need_delete = true;
-        let inode = self.core.dispose_event_group(event_group).unwrap();
+        let inode = self.core.as_mut().unwrap().dispose_event_group(event_group).unwrap();
         self.update_by_another_inode(inode);
         true
     }
@@ -405,20 +424,31 @@ impl Inode {
 impl Inode {
     pub fn read_entry(&mut self, entry: &InodeEntry, start: u32, end: u32) -> Vec<u8> {
         let start_index = start / 4096;
-        let end_index = end / 4096;
+        let start_off = start % 4096;
+        let end_index = (end - 1) / 4096;
+        let end_off = (end - 1) % 4096;
         let mut pages = vec![];
-        for i in start_index..end_index {
-            pages.push(self.core.read_data(entry.address + i));
+        for i in start_index..end_index + 1 {
+            pages.push(self.core.as_mut().unwrap().read_data(entry.address + i));
         }
         let mut res = vec![];
-        res.copy_from_slice(&pages[0][start as usize..4096]);
+        if end_index - start_index > 0 {
+            for byte in pages[0][start_off as usize..4096].iter() {
+                res.push(*byte);
+            }
+        } else {
+            for byte in pages[0][start_off as usize..(end_off + 1) as usize].iter() {
+                res.push(*byte);
+            }
+        }
         if end_index - start_index > 1 {
-            for i in 1..end_index-1 {
+            for i in 1..end_index - start_index {
                 res.append(&mut pages[i as usize].to_vec());
             }
         }
-        let remain_count = (end % 4096) as usize;
-        res.append(&mut pages[end_index as usize][0..remain_count].to_vec());
+        if end_index - start_index > 0 {
+            res.append(&mut pages[(end_index - start_index) as usize][0..(end_off + 1) as usize].to_vec());
+        }
         res
     }
 
@@ -446,17 +476,72 @@ impl Inode {
             valid: self.valid,
             ref_cnt: self.ref_cnt,
             lock: Mutex::new(false),
-            core: core_manager::CoreManager::new(),
+            core: None,
+        }
+    }
+
+    pub fn debug(&self) {
+        println!("Inode::Debug:{}", self.ino);
+        for (index, entry) in self.data.iter().enumerate() {
+            println!("{} offset: {} len: {} size: {} address: {} valid: {}", index, entry.offset, entry.len, entry.size, entry.address, entry.valid);
         }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::inode::inode_manager;
     use super::*;
 
     #[test]
     fn basics() {
-        
+
     }
+
+    // #[test]
+    // fn write() {
+    //     let mut inode_manager = inode_manager::InodeManager::new();
+    //     inode_manager.core_manager.mount();
+    //     let mut link = inode_manager.i_alloc();
+    //     link.as_mut().unwrap().borrow_mut().core = Some(inode_manager.core_manager);
+    //     let mut buf_1 = vec![];
+    //     for _ in 0..100 {
+    //         buf_1.push(22);
+    //     }
+    //     let mut buf_2 = vec![];
+    //     for _ in 0..27 {
+    //         buf_2.push(31);
+    //     }
+    //     let mut buf_3 = vec![];
+    //     for _ in 0..10 {
+    //         buf_3.push(51);
+    //     }
+    //     let mut buf_4 = vec![];
+    //     for _ in 0..30 {
+    //         buf_4.push(21);
+    //     }
+    //     link.as_ref().unwrap().borrow_mut().write(0, 100, &buf_1);
+    //     link.as_ref().unwrap().borrow().debug();
+    //     link.as_ref().unwrap().borrow_mut().write(13, 27, &buf_2);
+    //     link.as_ref().unwrap().borrow().debug();
+    //     link.as_ref().unwrap().borrow_mut().write(89, 10, &buf_3);
+    //     link.as_ref().unwrap().borrow().debug();
+    //     link.as_mut().unwrap().borrow_mut().write(5, 30, &buf_4);
+    //     let mut buf = vec![];
+    //     link.as_mut().unwrap().borrow_mut().read_all(&mut buf);
+    //     println!("res: {:?}", buf);
+    //     println!("res: {:?}", buf.len());
+    //     link.as_mut().unwrap().borrow_mut().read(10, 80, &mut buf);
+    //     println!("res: {:?}", buf);
+    //     println!("res: {:?}", buf.len());
+    //     // let mut data = vec![];
+    //     // link.as_mut().unwrap().borrow_mut().read(0, 10, &mut data);
+    //     // assert_eq!(data, buf);
+    //     // for _ in 0..100 {
+    //         // buf.push(33);
+    //     // }
+    //     // assert_eq!(link.as_ref().unwrap().borrow().data[0].offset, 0);
+    //     // assert_eq!(link.as_ref().unwrap().borrow().data[0].len, 10);
+    //     // assert_eq!(link.as_ref().unwrap().borrow().data[0].size, 1);
+    // }
 }

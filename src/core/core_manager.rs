@@ -407,16 +407,16 @@ impl CoreManager {
                             address: v_address,
                         };
                         for i in 0..event.size {
-                            let mut page = vec![];
+                            let mut page = [0; 4096];
                             for j in 0..4096 {
                                 let byte = event.content.get((i * 4096 + j) as usize);
                                 if byte.is_some() {
-                                    page.push(byte.unwrap().clone());
+                                    page[j as usize] = *byte.unwrap();
                                 } else {
-                                    page.push(0);
+                                    page[j as usize] = 0;
                                 }
                             }
-                            self.write_page(address, page.try_into().unwrap(), true);
+                            self.write_page(address, page, true);
                             self.update_bit(address, true);
                             self.update_pit(address, inode.ino);
                             self.vam.insert_map(address, v_address);
@@ -433,8 +433,8 @@ impl CoreManager {
                         entry.offset = event.offset;
                         let address = self.vam.get_physic_address(event.v_address).unwrap();
                         for i in event.size..event.o_size {
-                            self.dirty_pit(address + i - 1);
-                            let v_address = self.vam.get_virtual_address(address + i - 1).unwrap();
+                            self.dirty_pit(address + i);
+                            let v_address = self.vam.get_virtual_address(address + i).unwrap();
                             self.vam.delete_map(address, v_address);
                         }
 
@@ -443,8 +443,8 @@ impl CoreManager {
                         let mut entry = inode.data.get_mut(event.index as usize).unwrap();
                         let address = self.vam.get_physic_address(event.v_address).unwrap();
                         for i in 0..event.size {
-                            self.dirty_pit(address + i - 1);
-                            let v_address = self.vam.get_virtual_address(address + i - 1).unwrap();
+                            self.dirty_pit(address + i);
+                            let v_address = self.vam.get_virtual_address(address + i).unwrap();
                             self.vam.delete_map(address, v_address);
                         }
                         entry.valid = false;
@@ -469,6 +469,11 @@ impl CoreManager {
             for index in remove_indexs.into_iter() {
                 inode.data.remove(index);
             }
+            let mut size = 0;
+            for entry in inode.data.iter() {
+                size += entry.len;
+            }
+            inode.size = size;
             let mut raw_inode = CoreManager::transfer_inode_to_raw_inode(&inode);
             for entry in raw_inode.data.iter_mut() {
                 entry.address = self.vam.get_virtual_address(entry.address).unwrap();
@@ -509,7 +514,7 @@ impl CoreManager {
             ref_cnt: raw_inode.ref_cnt,
             n_link: raw_inode.n_link,
             lock: Mutex::new(false),
-            core: CoreManager::new(),
+            core: None,
             file_type,
             data,
         }

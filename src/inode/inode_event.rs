@@ -14,6 +14,32 @@ impl InodeEventGroup {
             events: vec![],
         }
     }
+
+    pub fn debug(&self) {
+        println!("InodeEventGroup::Debug:{} {}, {}", self.inode.ino, self.need_delete, self.events.len());
+        for (index, event) in self.events.iter().enumerate() {
+            match event {
+                InodeEvent::AddContent(event) => {
+                    println!("InodeEventGroup::Debug:{}, Add {} {} {} {} {:?}", index, event.index, event.offset, event.len, event.size, event.content);
+                },
+                InodeEvent::TruncateContent(event) => {
+                    println!("InodeEventGroup::Debug:{}, Truncate {} {} {} {} {} {}", index, event.index, event.offset, event.len, event.size, event.o_size, event.v_address);
+                },
+                InodeEvent::ChangeContent(event) => {
+                    println!("InodeEventGroup::Debug:{}, Change {} {} {}", index, event.index, event.offset, event.v_address);
+                },
+                InodeEvent::DeleteContent(event) => {
+                    println!("InodeEventGroup::Debug:{}, Delete {} {} {}", index, event.index, event.size, event.v_address);
+                },
+                InodeEvent::ModifyStat(event) => {
+                    println!("InodeEventGroup::Debug:{}, Modify {} {} {} {}", index, event.size, event.uid, event.gid, event.n_link);
+                },
+                InodeEvent::None => {
+                    println!("InodeEventGroup::Debug:{}, None", index);
+                },
+            }
+        }
+    }
 }
 
 pub enum InodeEvent {
