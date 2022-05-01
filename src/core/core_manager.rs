@@ -123,27 +123,31 @@ impl CoreManager {
         for event in gc_group.events {
             match event {
                 gc_event::GCEvent::Erase(event) => {
-                    self.erase_block(event.block_no, true);
+                    self.bit_begin_op();
+                    self.pit_begin_op();
                     let start_index = event.block_no * 128;
                     let end_index = (event.block_no + 1) * 128;
                     for i in start_index..end_index {
                         self.update_bit(i, false);
                         self.clean_pit(i);
                     }
+                    self.bit.end_op();
+                    self.pit.end_op();
+                    self.erase_block(event.block_no, true);
                 }
                 gc_event::GCEvent::Move(event) => {
                     let o_address = event.o_address;
                     let d_address = event.d_address;
-                    let size = 3;
-                    let ino = 1;
+                    let size = event.size;
+                    let ino = event.ino;
                     let mut data = vec![];
                     for i in o_address..o_address + size {
-                        self.dirty_pit(i);
                         data.push(self.read_page(i, true));
                         let v_address = self.vam.get_virtual_address(i);
                         if v_address.is_some() {
-                            self.vam.update_map(i, v_address.unwrap());
+                            self.vam.update_map(d_address + i, v_address.unwrap());
                         }
+                        self.dirty_pit(i);
                     }
                     for i in d_address..d_address + size {
                         self.update_bit(i, true);
@@ -225,6 +229,15 @@ impl CoreManager {
             self.bit.sync();
         }
     }
+
+    pub fn bit_begin_op(&mut self) {
+        self.bit.begin_op();
+    }
+
+    pub fn bit_end_op(&mut self) {
+        self.bit.end_op();
+        self.sync_bit();
+    }
 }
 
 // 管理PIT Region
@@ -274,7 +287,7 @@ impl CoreManager {
     }
 
     pub fn clean_pit(&mut self, address: u32) {
-        self.pit.delete_page(address);
+        self.pit.clean_page(address);
         self.set_main_table_page(address, PageUsedStatus::Clean);
         self.sync_pit();
     }
@@ -289,6 +302,15 @@ impl CoreManager {
             self.erase_block(4, false);
             self.pit.sync();
         }
+    }
+
+    pub fn pit_begin_op(&mut self) {
+        self.pit.begin_op();
+    }
+
+    pub fn pit_end_op(&mut self) {
+        self.pit.end_op();
+        self.sync_pit();
     }
 }
 
@@ -674,6 +696,18 @@ mod test {
     #[test]
     fn gc() {
         let mut manager = init_test();
+        assert_eq!(manager.find_next_pos_to_write(10), 0);
+        manager.update_bit(0, true);
+        manager.update_pit(0, 1);
+        manager.update_bit(1, true);
+        manager.update_pit(1, 1);
+        assert_eq!(manager.find_next_pos_to_write(10), 2);
+        assert_eq!(manager.gc.find_next_pos_to_write_except(10, 0).unwrap(), 128);
+        let gc_group = manager.gc.generate_gc_event();
+        assert_eq!(gc_group.events[0], gc_event::GCEvent::Move(gc_event::MoveGCEvent{ index: 0, ino: 1, size: 2, o_address: 0, d_address: 128 }));
+        assert_eq!(gc_group.events[1], gc_event::GCEvent::Erase(gc_event::EraseGCEvent{ index: 1, block_no: 0 }));
+        manager.allocate_inode();
+        manager.forward_gc();
     }
 
     #[test]
@@ -700,6 +734,11 @@ mod test {
         assert_eq!(manager.read_block(2, false), data_3);
         manager.erase_block(0, false);
         assert_eq!(manager.read_page(100, false), [0; 4096]);
+    }
+
+    #[test]
+    fn inode() {
+        
     }
 
     #[test]
@@ -740,5 +779,17 @@ mod test {
         let raw_inode = CoreManager::transfer_inode_to_raw_inode(&inode);
         assert_eq!(raw_inode.ino, 12);
         assert_eq!(raw_inode.file_type, 0);
+
+        let mut gc_group = gc_event::GCEventGroup::new();
+        let event1 = gc_event::EraseGCEvent { index: 2, block_no: 10 };
+        let event2 = gc_event::EraseGCEvent { index: 0, block_no: 10 };
+        let event3 = gc_event::MoveGCEvent{ index: 1, ino: 1, size: 2, o_address: 0, d_address: 128 };
+        gc_group.events.push(gc_event::GCEvent::Erase(event1));
+        gc_group.events.push(gc_event::GCEvent::Erase(event2));
+        gc_group.events.push(gc_event::GCEvent::Move(event3));
+        CoreManager::sort_gc_event(&mut gc_group);
+        assert_eq!(gc_group.events[0], gc_event::GCEvent::Erase(event2));
+        assert_eq!(gc_group.events[1], gc_event::GCEvent::Move(event3));
+        assert_eq!(gc_group.events[2], gc_event::GCEvent::Erase(event1));
     }
 }

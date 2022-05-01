@@ -4,6 +4,7 @@ use crate::util::array::{self, Array2};
 pub struct PIT {
     pub table: HashMap<u32, u32>,  // page -> ino
     pub sync: bool,                // true 需要持久化到磁盘中
+    pub is_op: bool,               // true 等调用end_op才持久化到磁盘中
 }
 
 impl PIT {
@@ -11,6 +12,7 @@ impl PIT {
         PIT {
             table: HashMap::new(),
             sync: false,
+            is_op: false,
         }
     }
 
@@ -46,6 +48,13 @@ impl PIT {
         self.sync = true;
     }
 
+    pub fn clean_page(&mut self, address: u32) {
+        if self.table.contains_key(&address) {
+            self.table.remove(&address).unwrap();
+            self.sync = true;
+        }
+    }
+
     pub fn encode(&self) -> Array2<u8> {
         let mut res = array::Array1::<u32>::new(128 * 4096 / 4);
         res.init(0);
@@ -76,11 +85,22 @@ impl PIT {
     }
 
     pub fn need_sync(&self) -> bool {
+        if self.is_op {
+            return false;
+        }
         self.sync
     }
 
     pub fn sync(&mut self) {
         self.sync = false;
+    }
+
+    pub fn begin_op(&mut self) {
+        self.is_op = true;
+    }
+
+    pub fn end_op(&mut self) {
+        self.is_op = false;
     }
 
 }

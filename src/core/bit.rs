@@ -4,6 +4,7 @@ use crate::util::array;
 pub struct BIT {
     pub table: HashMap<u32, bool>, // true: dirty/used false: clean
     pub sync: bool,                // true 需要持久化到磁盘中
+    pub is_op: bool,               // true 等调用end_op才持久化到磁盘中
 }
 
 impl BIT {
@@ -11,6 +12,7 @@ impl BIT {
         BIT {
             table: HashMap::new(),
             sync: false,
+            is_op: false,
         }
     }
 
@@ -75,11 +77,22 @@ impl BIT {
     }
 
     pub fn need_sync(&self) -> bool {
+        if self.is_op {
+            return false;
+        }
         self.sync
     }
 
     pub fn sync(&mut self) {
         self.sync = false;
+    }
+
+    pub fn begin_op(&mut self) {
+        self.is_op = true;
+    }
+
+    pub fn end_op(&mut self) {
+        self.is_op = false;
     }
 }
 
