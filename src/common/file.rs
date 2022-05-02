@@ -114,3 +114,13 @@ impl File {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn basics() {
+        
+    }
+}

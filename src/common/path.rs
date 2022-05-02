@@ -64,11 +64,11 @@ pub fn name_x(i_manager: &mut inode_manager::InodeManager, path: String, name: &
         if name_i_parent && path == "" {
             return Some(ip);
         }
-        let res = directory::dir_lookup(i_manager, Arc::clone(&ip), name.clone());
+        let res = directory::dir_lookup(&ip, name.clone());
         if res.is_none() {
             return None;
         }
-        next = res.unwrap().0;
+        next = i_manager.i_get(res.unwrap().0).unwrap();
         ip = next;
     }
     if name_i_parent {
@@ -88,7 +88,7 @@ pub fn name_i_parent(i_manager: &mut inode_manager::InodeManager, path: String, 
 
 
 #[cfg(test)]
-mod tests {
+mod test {
     use crate::common::path::skip_elem;
 
     #[test]
@@ -103,5 +103,10 @@ mod tests {
         assert_eq!(("".to_string(), "a".to_string()), res3.unwrap());
         assert_eq!(None, res4);
         assert_eq!(None, res5);
+    }
+
+    #[test]
+    fn name_x() {
+
     }
 }
