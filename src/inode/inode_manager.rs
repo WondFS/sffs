@@ -2,16 +2,16 @@ use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 use crate::core::core_manager;
 use crate::inode::inode::Inode;
-use crate::util::lru_cache;
 
 pub struct InodeManager {
     pub size: usize,
     pub capacity: usize,
-    pub core_manager: core_manager::CoreManager,
+    pub core_manager: CoreLink,
     pub inode_buffer: Vec<InodeLink>,
     pub lock: Mutex<bool>,
 }
 
+pub type CoreLink = Arc<RefCell<core_manager::CoreManager>>;
 pub type InodeLink = Arc<RefCell<Inode>>;
 
 impl InodeManager {
@@ -24,7 +24,7 @@ impl InodeManager {
         InodeManager {
             size: 0,
             capacity: capacity as usize,
-            core_manager: core_manager::CoreManager::new(),
+            core_manager: Arc::new(RefCell::new(core_manager::CoreManager::new())),
             inode_buffer: buf,
             lock: Mutex::new(false),
         }
@@ -44,9 +44,10 @@ impl InodeManager {
         if empty_index == -1 {
             panic!("InodeManager: alloc no spare cache to store");
         }
-        let mut inode = self.core_manager.allocate_inode();
+        let mut inode = self.core_manager.borrow_mut().allocate_inode();
         inode.ref_cnt = 1;
         let link = Arc::new(RefCell::new(inode));
+        link.borrow_mut().core = Some(Arc::clone(&self.core_manager));
         self.inode_buffer[empty_index as usize] = Arc::clone(&link);
         Some(link)
     }
@@ -68,9 +69,10 @@ impl InodeManager {
         if empty_index == -1 {
             panic!("InodeManager: get no spare cache to store");
         }
-        let mut inode = self.core_manager.get_inode(ino);
+        let mut inode = self.core_manager.borrow_mut().get_inode(ino);
         inode.ref_cnt = 1;
         let link = Arc::new(RefCell::new(inode));
+        link.borrow_mut().core = Some(Arc::clone(&self.core_manager));
         self.inode_buffer[empty_index as usize] = Arc::clone(&link);
         Some(link)
     }
@@ -101,7 +103,7 @@ mod test {
     #[test]
     fn basics() {
         let mut manager = InodeManager::new();
-        manager.core_manager.mount();
+        manager.core_manager.borrow_mut().mount();
         let link = manager.i_alloc();
         assert_eq!(link.unwrap().borrow().ino, 1);
         let link = manager.i_alloc();

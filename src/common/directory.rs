@@ -162,9 +162,8 @@ mod test {
     #[test]
     fn test_dirlookup() {
         let mut inode_manager = inode_manager::InodeManager::new();
-        inode_manager.core_manager.mount();
+        inode_manager.core_manager.borrow_mut().mount();
         let mut link = inode_manager.i_alloc();
-        link.as_mut().unwrap().borrow_mut().core = Some(inode_manager.core_manager);
         let stat = inode::InodeStat {
             file_type: inode::InodeFileType::Directory,
             ino: link.as_ref().unwrap().borrow().ino,
@@ -187,9 +186,8 @@ mod test {
     #[test]
     fn test_dirlink() {
         let mut inode_manager = inode_manager::InodeManager::new();
-        inode_manager.core_manager.mount();
+        inode_manager.core_manager.borrow_mut().mount();
         let mut link = inode_manager.i_alloc();
-        link.as_mut().unwrap().borrow_mut().core = Some(inode_manager.core_manager);
         let stat = inode::InodeStat {
             file_type: inode::InodeFileType::Directory,
             ino: link.as_ref().unwrap().borrow().ino,

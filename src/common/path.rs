@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use crate::inode::inode;
 use crate::inode::inode_manager;
 use crate::common::directory;
@@ -46,7 +45,7 @@ pub fn name_x(i_manager: &mut inode_manager::InodeManager, path: String, name: &
     if path.len() == 0 {
         return None;
     }
-    if path[0..0] == '/'.to_string() {
+    if path[0..1] == '/'.to_string() {
         ip = i_manager.i_get(1).unwrap();
     } else {
         return None;
@@ -89,7 +88,7 @@ pub fn name_i_parent(i_manager: &mut inode_manager::InodeManager, path: String, 
 
 #[cfg(test)]
 mod test {
-    use crate::common::path::skip_elem;
+    use super::*;
 
     #[test]
     fn test_skip_elem() {
@@ -106,7 +105,51 @@ mod test {
     }
 
     #[test]
-    fn name_x() {
-
+    fn test_name_x() {
+        let mut inode_manager = inode_manager::InodeManager::new();
+        inode_manager.core_manager.borrow_mut().mount();
+        let mut link = inode_manager.i_alloc();
+        inode_manager.i_alloc();
+        inode_manager.i_alloc();
+        inode_manager.i_alloc();
+        inode_manager.i_alloc();
+        inode_manager.i_alloc();
+        inode_manager.i_alloc();
+        inode_manager.i_alloc();
+        let stat = inode::InodeStat {
+            file_type: inode::InodeFileType::Directory,
+            ino: link.as_ref().unwrap().borrow().ino,
+            size: 0,
+            uid: 100,
+            gid: 44,
+            ref_cnt: 0,
+            n_link: 1,
+        };
+        link.as_ref().unwrap().borrow_mut().modify_stat(stat);
+        directory::dir_link(link.as_mut().unwrap(), 2, "test1.txt".to_string());
+        directory::dir_link(link.as_mut().unwrap(), 3, "home".to_string());
+        directory::dir_link(link.as_mut().unwrap(), 4, "test3.txt".to_string());
+        let mut link = inode_manager.i_get(3);
+        let stat = inode::InodeStat {
+            file_type: inode::InodeFileType::Directory,
+            ino: link.as_ref().unwrap().borrow().ino,
+            size: 0,
+            uid: 100,
+            gid: 44,
+            ref_cnt: 0,
+            n_link: 1,
+        };
+        link.as_ref().unwrap().borrow_mut().modify_stat(stat);
+        directory::dir_link(link.as_mut().unwrap(), 5, "test4.txt".to_string());
+        directory::dir_link(link.as_mut().unwrap(), 6, "a.rs".to_string());
+        directory::dir_link(link.as_mut().unwrap(), 7, "test5.txt".to_string());
+        directory::dir_link(link.as_mut().unwrap(), 8, "test6.txt".to_string());
+        let mut name = "".to_string();
+        let link = name_x(&mut inode_manager, "/home/a.rs".to_string(), &mut name, false);
+        assert_eq!(name, "".to_string());
+        assert_eq!(link.as_ref().unwrap().borrow().ino, 6);
+        let link = name_x(&mut inode_manager, "/home/a.rs".to_string(), &mut name, true);
+        assert_eq!(name, "a.rs".to_string());
+        assert_eq!(link.as_ref().unwrap().borrow().ino, 3);
     }
 }
