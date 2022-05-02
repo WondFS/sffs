@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-use std::sync::Arc;
 use crate::inode::inode;
 use crate::inode::inode::InodeStat;
 use crate::inode::inode_manager;
@@ -32,14 +30,14 @@ pub struct File {
     pub read_able: u8,
     pub writeable: u8,
     pub fd_type: FileDescriptorType,
-    pub inode: inode_manager::InodeLink,
+    pub inode: Option<inode_manager::InodeLink>,
 }
 
 impl File {
     // Get metadata about file f.
     pub fn file_stat(&self) -> Option<FileStat> {
         if self.fd_type == FileDescriptorType::INODE || self.fd_type == FileDescriptorType::DEVICE {
-            let inode_stat = self.inode.borrow().get_stat();
+            let inode_stat = self.inode.as_ref().unwrap().borrow().get_stat();
             return Some(File::transfer_inode_stat_to_stat(inode_stat));
         }
         None
@@ -53,7 +51,7 @@ impl File {
             return -1;
         }
         if self.fd_type == FileDescriptorType::INODE {
-            count = self.inode.borrow_mut().read(self.off, len, buf);
+            count = self.inode.as_ref().unwrap().borrow_mut().read(self.off, len, buf);
             if count > 0 {
                 self.off += count as u32;
             }
@@ -68,7 +66,7 @@ impl File {
             return -1;
         }
         if self.fd_type == FileDescriptorType::INODE {
-            let res = self.inode.borrow_mut().write(self.off, len, &buf);
+            let res = self.inode.as_ref().unwrap().borrow_mut().write(self.off, len, &buf);
             if res {
                 self.off += len;
                 ret = len as i32;
@@ -88,7 +86,7 @@ impl File {
             read_able: 0,
             writeable: 0,
             fd_type: FileDescriptorType::NONE,
-            inode: Arc::new(RefCell::new(inode::Inode::new())),
+            inode: None,
         }
     }
 
@@ -112,15 +110,5 @@ impl File {
             ref_cnt: 0,
             n_link: stat.n_link,
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn basics() {
-        
     }
 }
