@@ -385,7 +385,7 @@ impl CoreManager {
                 let address = self.vam.get_physic_address(entry.address).unwrap();
                 for i in 0..entry.size {
                     self.dirty_pit(address + i);
-                    let v_address = self.vam.get_virtual_address(address + i - 1).unwrap();
+                    let v_address = self.vam.get_virtual_address(address + i).unwrap();
                     self.vam.delete_map(address, v_address);
                 }
             }

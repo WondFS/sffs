@@ -393,6 +393,12 @@ impl Inode {
     pub fn modify_stat(&mut self, stat: InodeStat) -> bool {
         let mut event_group = inode_event::InodeEventGroup::new();
         event_group.inode = self.copy_inode();
+        if stat.ino != self.ino {
+            panic!("Inode: modify stat can't change ino");
+        }
+        if stat.size != self.size {
+            panic!("Inode: modify stat can't change size");
+        }
         let event = inode_event::ModifyInodeStatInodeEvent {
             file_type: stat.file_type,
             ino: stat.ino,
@@ -424,8 +430,9 @@ impl Inode {
         let mut event_group = inode_event::InodeEventGroup::new();
         event_group.inode = self.copy_inode();
         event_group.need_delete = true;
-        let inode = self.core.as_mut().unwrap().dispose_event_group(event_group).unwrap();
-        self.update_by_another_inode(inode);
+        if self.core.as_mut().unwrap().dispose_event_group(event_group).is_some() {
+            panic!("Inode: delete internal error");
+        }
         true
     }
 }
@@ -499,6 +506,7 @@ impl Inode {
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
     use crate::inode::inode_manager;
     use super::*;
 
@@ -615,11 +623,41 @@ mod test {
 
     #[test]
     fn modify() {
-
+        let mut inode_manager = inode_manager::InodeManager::new();
+        inode_manager.core_manager.mount();
+        let link = inode_manager.i_alloc();
+        link.as_ref().unwrap().borrow_mut().core = Some(inode_manager.core_manager);
+        let stat = InodeStat {
+            file_type: InodeFileType::Directory,
+            ino: link.as_ref().unwrap().borrow().ino,
+            size: 0,
+            uid: 100,
+            gid: 44,
+            ref_cnt: 10,
+            n_link: 10,
+        };
+        link.as_ref().unwrap().borrow_mut().modify_stat(stat);
+        let link = link.as_ref().unwrap().borrow_mut().core.as_mut().unwrap().get_inode(1);
+        assert_eq!(link.uid, 100);
+        assert_eq!(link.gid, 44);
     }
 
     #[test]
     fn delete() {
-
+        let mut inode_manager = inode_manager::InodeManager::new();
+        inode_manager.core_manager.mount();
+        let link = inode_manager.i_alloc();
+        link.as_ref().unwrap().borrow_mut().core = Some(inode_manager.core_manager);
+        let mut buf_1 = vec![];
+        for _ in 0..100 {
+            buf_1.push(22);
+        }
+        let mut buf_2 = vec![];
+        for _ in 0..27 {
+            buf_2.push(31);
+        }
+        link.as_ref().unwrap().borrow_mut().write(0, 100, &buf_1);
+        link.as_ref().unwrap().borrow_mut().write(13, 27, &buf_2);
+        link.as_ref().unwrap().borrow_mut().delete();
     }
 }
