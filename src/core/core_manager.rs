@@ -376,7 +376,10 @@ impl CoreManager {
     }
 
     pub fn dispose_event_group(&mut self, event_group: inode_event::InodeEventGroup) -> Option<inode::Inode> {
-        let mut inode = event_group.inode;
+        let mut inode = event_group.dup().inode;
+        let mut event_group = event_group;
+        CoreManager::sort_inode_event(&mut event_group);
+        event_group.debug();
         if event_group.need_delete {
             for entry in inode.data.iter() {
                 let address = self.vam.get_physic_address(entry.address).unwrap();
@@ -439,6 +442,11 @@ impl CoreManager {
                         }
 
                     }
+                    inode_event::InodeEvent::ChangeContent(event) => {
+                        let mut entry = inode.data.get_mut(event.index as usize).unwrap();
+                        entry.offset = event.offset;
+                        entry.address = event.v_address;
+                    }
                     inode_event::InodeEvent::DeleteContent(event) => {
                         let mut entry = inode.data.get_mut(event.index as usize).unwrap();
                         let address = self.vam.get_physic_address(event.v_address).unwrap();
@@ -466,7 +474,7 @@ impl CoreManager {
                     remove_indexs.push(index);
                 }
             }
-            for index in remove_indexs.into_iter() {
+            for index in remove_indexs.into_iter().rev() {
                 inode.data.remove(index);
             }
             let mut size = 0;
@@ -476,7 +484,7 @@ impl CoreManager {
             inode.size = size;
             let mut raw_inode = CoreManager::transfer_inode_to_raw_inode(&inode);
             for entry in raw_inode.data.iter_mut() {
-                entry.address = self.vam.get_virtual_address(entry.address).unwrap();
+                entry.address = self.vam.get_physic_address(entry.address).unwrap();
             }
             self.kv.update_inode(raw_inode);
             Some(inode)
@@ -560,6 +568,21 @@ impl CoreManager {
                 if index_1 > index_2 {
                     let temp = event_group.events[j];
                     event_group.events[j] = event_group.events[j+1];
+                    event_group.events[j+1] = temp;
+                }
+            }
+        }
+    }
+
+    pub fn sort_inode_event(event_group: &mut inode_event::InodeEventGroup) {
+        let len = event_group.events.len();
+        for i in 0..len {
+            for j in 0..len - 1 - i {
+                let index_1 =  event_group.events[j].get_index();
+                let index_2 = event_group.events[j+1].get_index();
+                if index_1 > index_2 || index_1 == -1 {
+                    let temp = event_group.events[j].clone();
+                    event_group.events[j] = event_group.events[j+1].clone();
                     event_group.events[j+1] = temp;
                 }
             }
