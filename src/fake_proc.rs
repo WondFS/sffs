@@ -10,6 +10,7 @@ pub struct Proc {
     pub cwd: inode_manager::InodeLink,
     pub max_file: u32,
     pub file_table: file_table::FileTable,
+    pub inode_manager: inode_manager::InodeManager,
 }
 
 pub fn my_proc() -> Proc {
@@ -22,5 +23,6 @@ pub fn my_proc() -> Proc {
         cwd: Arc::new(RefCell::new(inode::Inode::new())),
         max_file: 16,
         file_table: file_table::FileTable::new(),
+        inode_manager: inode_manager::InodeManager::new(),
     }
 }

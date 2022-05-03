@@ -42,17 +42,54 @@ impl VAM {
     }
 
     pub fn insert_map(&mut self, address: u32, v_address: u32) {
+        if self.physical_address_table.contains_key(&address) {
+            panic!("VAM: insert map has exist");
+        }
         self.physical_address_table.insert(address, v_address);
         self.virtual_address_table.insert(v_address, address);
     }
 
     pub fn update_map(&mut self, address: u32, v_address: u32) {
-        *self.physical_address_table.get_mut(&address).unwrap() = v_address;
-        *self.virtual_address_table.get_mut(&v_address).unwrap() = address;
+        let o_address = self.get_physic_address(v_address);
+        if o_address.is_none() {
+            panic!("VAM: update no that map");
+        }
+        self.delete_map(o_address.unwrap(), v_address);
+        self.insert_map(address, v_address);
     }
 
     pub fn delete_map(&mut self, address: u32, v_address: u32) {
+        if !self.physical_address_table.contains_key(&address) {
+            panic!("VAM: delete no that map");
+        }
         self.physical_address_table.remove(&address);
         self.virtual_address_table.remove(&v_address);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    
+    #[test]
+    fn basics() {
+        let mut vam = VAM::new();
+
+        assert_eq!(vam.get_available_address(10), 0);
+        assert_eq!(vam.get_available_address(10), 10);
+
+        for i in 0..10 {
+            vam.insert_map(i, 10 + i);
+        }
+        assert_eq!(vam.get_physic_address(14).unwrap(), 4);
+        assert_eq!(vam.get_virtual_address(2).unwrap(), 12);
+
+        vam.update_map(100, 13);
+        assert_eq!(vam.get_physic_address(13).unwrap(), 100);
+        assert_eq!(vam.get_virtual_address(100).unwrap(), 13);
+
+        vam.delete_map(100, 13);
+        assert_eq!(vam.get_physic_address(13), None);
+        assert_eq!(vam.get_virtual_address(100), None);
     }
 }
