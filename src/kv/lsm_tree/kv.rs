@@ -5,7 +5,7 @@ pub struct LSMTree {
     worker_pool: threadpool::TreadPool,
     bf_bits_per_entry: f32,
     depth: u64,
-    directory: lsm_file::LsmFile,
+    rw_helper: rw_helper::RWHelper,
 }
 
 impl LSMTree {
