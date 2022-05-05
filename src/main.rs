@@ -11,6 +11,7 @@ mod common;
 mod sys_file;
 mod fake_proc;
 mod super_stat;
+mod compression;
 
 fn main() {
     println!("Hello, world!");
