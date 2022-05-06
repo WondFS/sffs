@@ -8,6 +8,7 @@ mod driver;
 mod util;
 mod inode;
 mod common;
+mod compress;
 mod sys_file;
 mod fake_proc;
 mod super_stat;
