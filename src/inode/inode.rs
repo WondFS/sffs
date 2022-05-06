@@ -1,8 +1,11 @@
 use std::sync::Mutex;
 use std::cmp::{max, min};
 use crate::inode::inode_event;
+use crate::util;
+use std::collections::BTreeMap;
 
 use super::inode_manager;
+
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum InodeFileType {
@@ -41,7 +44,7 @@ pub struct Inode {
     pub ref_cnt: u8,
     pub n_link: u8,
     pub lock: Mutex<bool>,
-    pub data: Vec<InodeEntry>,
+    pub data: BTreeMap<u8,InodeEntry>,
     pub core: Option<inode_manager::CoreLink>,
 }
 
@@ -54,13 +57,16 @@ impl Inode {
             uid: 0,
             gid: 0,
             n_link: 0,
-            data: vec![],
+            data: BTreeMap::new(),
             valid: false,
             ref_cnt: 0,
             lock: Mutex::new(false),
             core: None,
         }
     }
+
+    // inode的增删查改容易产生碎片
+    // data使用btree存储，局部性比rbtree好，消耗更多内存
 
     pub fn read_all(&mut self, buf: &mut Vec<u8>) -> i32 {
         self.read(0, self.size, buf)
@@ -71,13 +77,20 @@ impl Inode {
         let mut len = len;
         let mut count = 0;
         let mut flag = false;
+
+        // 读取范围合法限制
         if offset >= self.size {
             return -1;
         }
         if offset + len > self.size {
             len = self.size - offset;
         }
-        for entry in self.data.clone().iter() {
+
+        // 查找对应的entry
+        // 基于假设 entry 按 offset 增序排序
+
+
+        for entry in self.data.clone().iter() { // clone之后读取？效率太低了，可能写错了
             if entry.offset + entry.len < offset {
                 continue;
             }
@@ -128,6 +141,8 @@ impl Inode {
             } else {
                 let valid_prev = max(0, new_entry.offset as i32 - entry.offset as i32) as u32;
                 let valid_suffix = max(0, entry.offset as i32 + entry.len as i32 - new_entry.offset as i32 - new_entry.len as i32) as u32;
+
+                // 清除
                 if valid_prev == 0 {
                     let event = inode_event::DeleteContentInodeEvent {
                         index,
@@ -146,6 +161,8 @@ impl Inode {
                     };
                     event_group.events.push(inode_event::InodeEvent::TruncateContent(event));
                 }
+
+                // 写
                 index += 1;
                 if !flag {
                     let event = inode_event::AddContentInodeEvent {
@@ -219,6 +236,7 @@ impl Inode {
         }
         for entry in self.data.iter_mut() {
             if flag {
+                // TODO 找到第一个entry后，将此后所有entry向后偏移
                 let event = inode_event::ChangeContentInodeEvent {
                     index: index,
                     offset: entry.offset + len,
@@ -227,9 +245,13 @@ impl Inode {
                 event_group.events.push(inode_event::InodeEvent::ChangeContent(event));
             } else {
                 if new_entry.offset < entry.offset + entry.len {
+                    // 基于假设 entry 按 offset 增序排序
+                    // 找到第一段相交的entry
                     flag = true;
                     let valid_prev = max(0, new_entry.offset - entry.offset);
                     let valid_suffix = max(0, entry.offset as i32 + entry.len as i32 - new_entry.offset as i32) as u32;
+
+                    // 拆分entry前面部分
                     if valid_prev == 0 {
                         let event = inode_event::DeleteContentInodeEvent {
                             index,
@@ -248,6 +270,8 @@ impl Inode {
                         };
                         event_group.events.push(inode_event::InodeEvent::TruncateContent(event));
                     }
+
+                    // 写新entry
                     index  += 1;
                     let event = inode_event::AddContentInodeEvent {
                         index,
@@ -258,6 +282,8 @@ impl Inode {
                     };
                     event_group.events.push(inode_event::InodeEvent::AddContent(event));
                     index += 1;
+
+                    // 拆分entry后面部分
                     if valid_suffix > 0 {
                         second_o_entry= Some(entry.clone());
                         second_entry = Some(InodeEntry {
@@ -273,7 +299,7 @@ impl Inode {
             }
             index += 1;
         }
-        if !flag {
+        if !flag { // 没有找到任何相交区间，直接插入
             let event = inode_event::AddContentInodeEvent {
                 index: self.data.len() as u32,
                 offset: new_entry.offset,
@@ -283,6 +309,8 @@ impl Inode {
             };
             event_group.events.push(inode_event::InodeEvent::AddContent(event));
         }
+
+        // entry后面部分存在
         if second_entry.is_some() {
             let second_entry = second_entry.unwrap();
             let data = self.read_entry(&second_o_entry.unwrap(), second_entry.offset - len - second_o_entry.unwrap().offset, second_entry.offset + second_entry.len - len - second_o_entry.unwrap().offset);
@@ -307,11 +335,14 @@ impl Inode {
         let mut new_o_entry = None;
         let mut new_index = 0;
         let mut index = 0;
+
         for entry in self.data.iter_mut() {
             if entry.offset + entry.len <= offset {
+                // 前相离
                 index += 1;
                 continue
             } else if entry.offset >= offset + len {
+                // 后相离
                 let event = inode_event::ChangeContentInodeEvent {
                     index,
                     offset: entry.offset - len,
@@ -320,7 +351,8 @@ impl Inode {
                 event_group.events.push(inode_event::InodeEvent::ChangeContent(event));
                 index += 1;
                 continue
-            } else {
+            } else { 
+                // 相交
                 let valid_prev = max(0, offset as i32 - entry.offset as i32) as u32;
                 let valid_suffix = max(0, entry.offset as i32 + entry.len as i32 - offset as i32 - len as i32) as u32;
                 if valid_prev == 0 {
