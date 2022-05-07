@@ -1,8 +1,8 @@
 use std::sync::Mutex;
 use std::cmp::{max, min};
 use crate::inode::inode_event;
-
-use super::inode_manager;
+use crate::inode::inode_manager;
+use crate::compress::compress;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum InodeFileType {
@@ -29,6 +29,16 @@ pub struct InodeEntry {
     pub len: u32,           // 以Byte为单位
     pub size: u32,          // 以Page为单位
     pub address: u32,
+}
+
+#[derive(Copy, Clone)]
+pub struct TestEntry {
+    pub valid: bool,
+    pub offset: u32,
+    pub len: u32,           // 以Byte为单位
+    pub size: u32,          // 以Page为单位
+    pub address: u32,
+    pub o_len: u32,         // 压缩前的长度
 }
 
 pub struct Inode {
