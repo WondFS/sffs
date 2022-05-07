@@ -1,5 +1,5 @@
-
-
+use std::collections::BTreeSet;
+use crate::kv::lsm_tree::data_type::{Entry, Key, Value};
 
 
 
@@ -8,7 +8,7 @@ pub struct Memtable {
     pub entries: BTreeSet<Entry>,
 }
 
-impl memtable {
+impl Memtable {
     pub fn new(size: usize) -> Memtable {
         Memtable {
             size: size,
@@ -33,7 +33,7 @@ impl memtable {
             key: key.clone(),
             value: value,
         };
-        self.entries.replace(entry);
+        self.entries.replace(query);
     }
 
     pub fn full(&self) -> bool {
@@ -42,5 +42,9 @@ impl memtable {
         } else {
             false
         }
+    }
+
+    pub fn clear(&self) {
+        self.entries.clear();
     }
 }

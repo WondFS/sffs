@@ -1,12 +1,18 @@
+use std::cmp::Ordering;
+use std::hash::Hash;
 
 
 
 
 
+pub static KEY_LENGTH: usize = 16;
+pub static VALUE_LENGTH: usize = 16;
+pub static ENTRY_LENGTH: usize = KEY_LENGTH + VALUE_LENGTH;
 
 pub type Key = Vec<u8>;
 pub type Value = Vec<u8>;
 
+#[derive(Eq, Default, Clone, Hash)]
 pub struct Entry {
     pub key: Key,
     pub value: Value,
@@ -28,13 +34,13 @@ impl Ord for Entry {
 }
 
 impl PartialOrd for Entry {
-    fn partial_cmp(other: &Self) -> Option {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl PartialEq for Entry {
-    fn eq(other: &Self) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.key == other.key
     }
 }
