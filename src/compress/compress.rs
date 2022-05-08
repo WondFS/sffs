@@ -1,6 +1,7 @@
 use crate::compress::huffman;
 use crate::compress::snappy;
 
+#[derive(Copy, Clone, PartialEq)]
 pub enum CompressType {
     None,
     Huffman,

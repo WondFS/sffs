@@ -1,9 +1,12 @@
+use crate::write_buf;
+use crate::util::array;
 use crate::driver::{disk, fake_disk};
 
 pub struct DiskManager {
     pub is_virtual: bool,
     pub driver: Option<disk::DiskDriver>,
     pub fake_disk: Option<fake_disk::FakeDisk>,
+    pub write_cache: write_buf::WriteCache,
 }
 
 impl DiskManager {
@@ -19,21 +22,51 @@ impl DiskManager {
             is_virtual,
             driver,
             fake_disk,
+            write_cache: write_buf::WriteCache::new(),
         }
     }
 
     pub fn disk_read(&self, block_no: u32) -> [[u8; 4096]; 128] {
-        if self.is_virtual {
-            return self.fake_disk.as_ref().unwrap().fake_disk_read(block_no);
+        let start_index = block_no * 128;
+        let end_index = (block_no + 1) * 128;
+        let mut exist_indexs = vec![];
+        for index in start_index..end_index {
+            if self.write_cache.contains_address(index) {
+                exist_indexs.push(index);
+            }
         }
-        self.driver.as_ref().unwrap().disk_read(block_no)
+        let mut block_data;
+        if exist_indexs.len() == 128 {
+            block_data = array::Array1::new(128);
+            block_data.init([0; 4096]);
+        } else {
+            if self.is_virtual {
+                block_data = DiskManager::transfer(self.fake_disk.as_ref().unwrap().fake_disk_read(block_no));
+            } else {
+                block_data = DiskManager::transfer(self.driver.as_ref().unwrap().disk_read(block_no));
+            }
+        }
+        for index in exist_indexs.into_iter() {
+            let data = self.write_cache.read(index).unwrap();
+            block_data.set(index - start_index, data);
+        }
+        DiskManager::reverse(block_data)
+        // todo!()
     }
     
     pub fn disk_write(&mut self, address: u32, data: [u8; 4096]) {
-        if self.is_virtual {
-            return self.fake_disk.as_mut().unwrap().fake_disk_write(address, data);
+        self.write_cache.write(address, data);
+        if !self.write_cache.need_sync() {
+            return;
         }
-        self.driver.as_mut().unwrap().disk_write(address, data);
+        let data = self.write_cache.get_all();
+        for entry in data.into_iter() {
+            if self.is_virtual {
+                return self.fake_disk.as_mut().unwrap().fake_disk_write(entry.0, entry.1);
+            }
+            self.driver.as_mut().unwrap().disk_write(entry.0, entry.1);
+        }
+        self.write_cache.sync();
     }
     
     pub fn disk_erase(&mut self, block_no: u32) {
@@ -41,6 +74,19 @@ impl DiskManager {
             return self.fake_disk.as_mut().unwrap().fake_disk_erase(block_no);
         }
         self.driver.as_mut().unwrap().disk_erase(block_no);
+    }
+
+    pub fn transfer(data: [[u8; 4096]; 128]) -> array::Array1<[u8; 4096]> {
+        let mut res = array::Array1::new(128);
+        res.init([0; 4096]);
+        for i in 0..128 {
+            res.set(i, data[i as usize]);
+        }
+        res
+    }
+
+    pub fn reverse(data: array::Array1<[u8; 4096]>) -> [[u8; 4096]; 128] {
+        [[0; 4096]; 128]
     }
 }
 

@@ -10,7 +10,7 @@ pub struct Buf {
 impl Buf {
     pub fn new(address: u32, data: [u8; 4096]) -> Buf {
         Buf {
-            address: address,
+            address,
             data,
         }
     }

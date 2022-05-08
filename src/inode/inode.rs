@@ -31,16 +31,6 @@ pub struct InodeEntry {
     pub address: u32,
 }
 
-#[derive(Copy, Clone)]
-pub struct TestEntry {
-    pub valid: bool,
-    pub offset: u32,
-    pub len: u32,           // 以Byte为单位
-    pub size: u32,          // 以Page为单位
-    pub address: u32,
-    pub o_len: u32,         // 压缩前的长度
-}
-
 pub struct Inode {
     pub valid: bool,
     pub file_type: InodeFileType,

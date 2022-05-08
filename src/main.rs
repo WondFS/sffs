@@ -11,6 +11,7 @@ mod common;
 mod compress;
 mod sys_file;
 mod fake_proc;
+mod write_buf;
 mod super_stat;
 
 fn main() {
