@@ -38,7 +38,7 @@ impl BufCache {
             return data.unwrap();
         }
         let block_no = address / 128;
-        let data = self.disk_manager.disk_read(block_no);
+        let data = self.disk_manager.read(block_no);
         for (index, page) in data.iter().enumerate() {
             self.put_data(address + index as u32, *page);
         }
