@@ -1,6 +1,8 @@
 use crate::buf;
-use crate::memtable;
-use crate::level;
+use crate::kv::lsm_tree::data_type;
+use crate::kv::lsm_tree::sstable_metadata;
+use std::str;
+use crate::kv::lsm_tree::memtable;
 
 
 
@@ -9,75 +11,96 @@ use crate::level;
 
 
 pub struct LSMTree {
-    levels: Vec<level::Level>,
     memtable: memtable::Memtable,
-    depth: u64,
-    buf: buf::BufCache,
-    sstable_max_size: usize,
+    sstable_metadata: sstable_metadata::SSTableMetadata,
 }
 
-pub static DEFAULT_TREE_DEPTH: u64 = 3;
+pub static sstableNumThreshold: u32 = 10;
+pub static entry_num_per_block: u32 = 4096 as u32 / data_type::ENTRY_LENGTH as u32;
+pub static memtableThreshold: u32 = entry_num_per_block - 1;
 
 impl LSMTree {
-    pub fn new(sstable_max_size: u64, depth: u64, fanout: u64) -> LSMTree {
-            
-    }
-
-    pub fn get_run(&mut self, mut run_id: usize) -> Option<&mut run::Run> {
-
-    }
-
-    pub fn num_runs(&self) -> usize {
-    
-    }
-
-    fn merge_down(&mut self, cur_level: usize) {
-    
-    }
-    
-
-    fn fill_str(&self, _str: &str, length: usize) -> Vec<u8> {
-        let mut res = vec![' ' as u8; length - _str.len()];
-        res.extend(_str.as_bytes().to_vec());
-        res
-    }
-
-
-
-
-    fn vec_to_str(&self, _vec: &Vec<u8>) -> String {
-        let res: String = str::from_utf8(_vec).unwrap().trim().to_owned();
-        res
-    }
-
-
-    pub fn put(&mut self, key_str: &str, value_str: &str) -> bool {
-        let key = self.fill_str(key_str, data_type::KEY_SIZE);
-        let value = self.fill_str(value_str, data_type::VALUE_SIZE);
-        if self.memtable.full() == false {
-            self.memtable.put(key, value);
-            return true;
+    pub fn new() -> LSMTree {
+        LSMTree {
+            memtable: memtable::Memtable::new(memtableThreshold),
+            sstable_metadata: sstable_metadata::SSTableMetadata::new(sstableNumThreshold),
         }
+    }
 
-        self.merge_down(0);
-
-        let size = self.sstable_max_size as u64;
-        self.levels[0].sstable.push_front(sstable::SSTable::new(size, 0));
-
-        for entry in self.memtable.entries.iter() {
-            self.levels[0].sstable[0].push(&entry);
-        }
-
-        self.memtable.put(key, value);
+    pub fn flush(&mut self) -> bool {
+    
+        self.sstable_metadata.flush(self.memtable.flush().clone());
 
         true
     }
 
-    pub fn get(&mut self, key: &str) -> Option(String) {
-        
+
+    pub fn put(&mut self, key_str: &str, value_str: &str) -> bool {
+        if key_str.as_bytes().to_vec().len() > data_type::KEY_LENGTH as usize {
+            return false;
+        }
+
+        if value_str.as_bytes().to_vec().len() > data_type::VALUE_LENGTH as usize {
+            return false;
+        }
+
+
+        let key = data_type::fill_str(key_str, data_type::KEY_LENGTH as usize);
+        let value = data_type::fill_str(value_str, data_type::VALUE_LENGTH as usize);
+
+        self.memtable.put(&key, &value);
+
+        if self.memtable.full() == false {
+            return true;
+        }
+
+        self.flush();
+
+        if self.sstable_metadata.full() {
+            self.sstable_metadata.merge();
+        }
+
+        true
     }
 
-    pub fn delete(&mut self, key: &str) {
+    pub fn get(&mut self, key_str: &str) -> Option<String> {
+        if key_str.as_bytes().to_vec().len() > data_type::KEY_LENGTH as usize {
+            return None;
+        }
+
+        let key = data_type::fill_str(key_str, data_type::KEY_LENGTH as usize);
+        let res: String;
+
+
+
+        match self.memtable.get(&key) {
+            Some(v) => {
+                res = data_type::vec_to_str(&v);
+                if res != data_type::TOMBSTONE.to_string() {
+                    return Some(res);
+                } else {
+                    return None;
+                }
+            }
+
+            _ => {
+                return self.sstable_metadata.get(key);
+            }
+        }
+    }
+
+    
+
+    pub fn delete(&mut self, key_str: &str) -> bool {
+        if key_str.as_bytes().to_vec().len() > data_type::KEY_LENGTH as usize {
+            return false;
+        }
         
+        let key = data_type::fill_str(key_str, data_type::KEY_LENGTH as usize);
+        let value = data_type::fill_str(data_type::TOMBSTONE, data_type::VALUE_LENGTH as usize);
+
+        self.memtable.put(&key, &value);
+
+        true
     }
 }

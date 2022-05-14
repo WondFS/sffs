@@ -1,13 +1,13 @@
 use std::cmp::Ordering;
+use std::str;
 use std::hash::Hash;
 
 
-
-
-
-pub static KEY_LENGTH: usize = 16;
-pub static VALUE_LENGTH: usize = 16;
-pub static ENTRY_LENGTH: usize = KEY_LENGTH + VALUE_LENGTH;
+pub static KEY_LENGTH: u32 = 16;
+pub static VALUE_LENGTH: u32 = 16;
+pub static ENTRY_LENGTH: u32 = KEY_LENGTH + VALUE_LENGTH;
+pub static TOMBSTONE: &str = "TOMBSTONE";
+pub static EOF: &str = "EOF";
 
 pub type Key = Vec<u8>;
 pub type Value = Vec<u8>;
@@ -16,6 +16,17 @@ pub type Value = Vec<u8>;
 pub struct Entry {
     pub key: Key,
     pub value: Value,
+}
+
+pub fn fill_str(_str: &str, length: usize) -> Vec<u8> {
+    let mut res = vec![' ' as u8; length - _str.len()];
+    res.extend(_str.as_bytes().to_vec());
+    res
+}
+
+pub fn vec_to_str(_vec: &Vec<u8>) -> String {
+    let res: String = str::from_utf8(_vec).unwrap().trim().to_owned();
+    res
 }
 
 impl Entry {

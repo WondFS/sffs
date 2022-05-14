@@ -1,17 +1,18 @@
 use std::collections::BTreeSet;
+use crate::kv::lsm_tree::data_type;
 use crate::kv::lsm_tree::data_type::{Entry, Key, Value};
 
 
 
 pub struct Memtable {
-    pub size: usize,
+    pub threshold: u32,
     pub entries: BTreeSet<Entry>,
 }
 
 impl Memtable {
-    pub fn new(size: usize) -> Memtable {
+    pub fn new(threshold: u32) -> Memtable {
         Memtable {
-            size: size,
+            threshold: threshold,
             entries: BTreeSet::new(),
         }
     }
@@ -28,23 +29,35 @@ impl Memtable {
         }
     }
 
-    pub fn put(&mut self, key: Key, value: Value) {
+    pub fn put(&mut self, key: &Key, value: &Value) {
         let query = Entry {
             key: key.clone(),
-            value: value,
+            value: value.clone(),
         };
         self.entries.replace(query);
     }
 
+    pub fn flush(&mut self) -> Vec<Entry> {
+        let mut entries: Vec<Entry> = Vec::new();
+
+        for entry in &self.entries {
+            entries.push(entry.clone());
+        }
+    
+        self.entries.clear();
+
+        entries
+    }
+
     pub fn full(&self) -> bool {
-        if self.entries.len() == self.size {
+        if self.entries.len() == self.threshold as usize {
             true
         } else {
             false
         }
     }
 
-    pub fn clear(&self) {
+    pub fn clear(&mut self) {
         self.entries.clear();
     }
 }
